@@ -33,7 +33,7 @@ create table public.profiles (
   full_name   text,
   created_at  timestamptz not null default now()
 );
--- Added Comment
+
 
 comment on table public.profiles is 'Links Supabase auth users to application-level profile data.';
 
