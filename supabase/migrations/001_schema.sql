@@ -39,11 +39,13 @@ comment on table public.profiles is 'Links Supabase auth users to application-le
 
 -- ============================================================================
 -- 2. categories
+-- — added 2026-09-16 for Use Case 19 (Catalog Management) to support admin soft-delete of categories; the schema previously had no soft-delete flag here, unlike `products.is_published` |
 -- ============================================================================
 create table public.categories (
   id    uuid primary key default gen_random_uuid(),
   name  text not null unique,
-  slug  text not null unique
+  slug  text not null unique,
+  is_active boolean not null default true
 );
 
 -- ============================================================================
@@ -148,6 +150,7 @@ create index idx_returns_order_id on public.returns(order_id);
 
 -- ============================================================================
 -- 9. inventory_logs  (supporting table — see notes above)
+--— every catalog stock adjustment (via `adjust_product_stock()`, see Functions) writes one row here, `change_qty` being the signed delta applied |
 -- ============================================================================
 create table public.inventory_logs (
   id          uuid primary key default gen_random_uuid(),

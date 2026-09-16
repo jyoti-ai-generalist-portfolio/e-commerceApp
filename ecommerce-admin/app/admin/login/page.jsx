@@ -14,12 +14,23 @@ export default function AdminLoginPage() {
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [errorMessage, setErrorMessage] = useState("");
 
+  console.log ("Google client id is ",process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
   useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
+    //const script = document.createElement("script");
+    let script = document.getElementById("google-gsi-script");
+    if (!script) {
+    script = document.createElement("script");
+    script.id = "google-gsi-script";
+    script.src = "https://google.com";
     script.async = true;
-    script.onload = () => {
-      if (!window.google || !buttonRef.current) return;
+    document.body.appendChild(script);
+    }
+
+    //script.src = "https://accounts.google.com/gsi/client";
+    //script.async = true;
+    //script.onload = () => {
+      //if (!window.google || !buttonRef.current) return;
+      
       window.google.accounts.id.initialize({
         client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
         callback: handleGoogleCredential,
@@ -31,9 +42,14 @@ export default function AdminLoginPage() {
         shape: "pill",
         width: 280,
       });
-    };
-    document.body.appendChild(script);
-    return () => document.body.removeChild(script);
+    //};
+    if (window.google) {
+    initializeGoogle();
+    } else {
+    script.onload = initializeGoogle;
+  }
+    //document.body.appendChild(script);
+   // return () => document.body.removeChild(script);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
