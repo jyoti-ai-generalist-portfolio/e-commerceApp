@@ -1,8 +1,8 @@
 services:
   web:
     build:
-      context: .
-      dockerfile: ./ecommerce-admin/app/Dockerfile.dev
+      context: ./ecommerce-admin
+      dockerfile: app/Dockerfile.dev
     container_name: e-Commerce-App
     ports:
       - "3000:3000"
@@ -12,7 +12,8 @@ services:
       # Add your external Supabase credentials here:
     volumes:
       # Mount workspace directory for Hot Module Replacement (HMR)
-      - .:/ecommerce-admin/app
+      
+      - ./ecommerce-admin/app:/ecommerce-admin/app
       # Prevent local host node_modules from overriding container node_modules
-      - /ecommerce-admin/app/node_modules
-      - /ecommerce-admin/app/.next
+      - /ecommerce-admin/node_modules
+      - /ecommerce-admin/.next
