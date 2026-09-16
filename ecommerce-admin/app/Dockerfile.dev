@@ -1,0 +1,46 @@
+# Step 1: Use an official Node.js runtime as the base image
+# (alpine is a highly optimized, lightweight Linux distribution)
+FROM node:20-alpine
+
+# Step 2: Set the working directory inside the container
+WORKDIR /app
+
+# Step 3: Copy package.json and package-lock.json first to leverage Docker cache
+COPY package*.json ./
+
+# Copy lockfile and package manifest
+COPY pnpm-lock.yaml* ./
+
+# Enable corepack to use pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Step 4: Install your application's dependencies
+#RUN npm install
+
+# Install dependencies
+#RUN pnpm install
+# Step 4: Install dependencies using a Docker cache mount to avoid store issues
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
+
+# Step 5: Copy the rest of your application code
+COPY . .
+
+# Step 6: Expose the port your app runs on
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+ENV WATCHPACK_POLLING=true
+
+# Step 7: Define the command to run your app
+
+CMD ["pnpm", "run", "dev"]
+
+#CMD ["npm", "run", "dev"]
+#CMD ["node", "server.js"]
+
+
+
+
+
+
+

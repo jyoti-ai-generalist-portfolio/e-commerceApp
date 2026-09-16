@@ -47,6 +47,16 @@ create table public.categories (
 );
 
 -- ============================================================================
+-- . admins
+-- ============================================================================
+create table public.admins (
+  id    uuid primary key default gen_random_uuid(),
+  admin_name  text not null unique,
+  admin_email text not null unique,
+  created_at      timestamptz not null default now()
+);
+
+-- ============================================================================
 -- 3. products
 -- ============================================================================
 create table public.products (
@@ -56,6 +66,7 @@ create table public.products (
   description     text,
   price           numeric(10,2) not null check (price >= 0),
   stock_quantity  integer not null default 0 check (stock_quantity >= 0),
+  low_stock_threshold  integer not null default 0 check (low_stock_threshold >= 0),
   image_urls      text[] default '{}',
   is_published    boolean not null default true,
   created_at      timestamptz not null default now(),
