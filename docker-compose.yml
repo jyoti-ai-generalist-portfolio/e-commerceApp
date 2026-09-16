@@ -6,6 +6,8 @@ services:
     container_name: e-Commerce-App
     ports:
       - "3000:3000"
+    env_file:
+      - ./ecommerce-admin/app/.env.local
     environment:
       - NODE_ENV=development
       - WATCHPACK_POLLING=true

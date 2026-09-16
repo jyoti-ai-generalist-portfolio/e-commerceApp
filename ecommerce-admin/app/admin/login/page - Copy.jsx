@@ -15,14 +15,14 @@ export default function AdminLoginPage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   console.log ("Google client id is ",process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
-  useEffect(() => {
+  useEffect(() =>  useEffect(() => {
     // 1. Look for an existing script tag to prevent duplicates during Fast Refresh
     let script = document.getElementById("google-gsi-script");
     
     if (!script) {
       script = document.createElement("script");
       script.id = "google-gsi-script";
-      // USE THIS: The correct official Identity Services URL
+      // FIX: Changed back to the official Google Identity Services library URL
       script.src = "https://accounts.google.com/gsi/client";
       script.async = true;
       document.body.appendChild(script);
@@ -30,13 +30,13 @@ export default function AdminLoginPage() {
 
     // 2. Safely bundle the logic inside a named function
     const initializeGoogle = () => {
+      // Safety checks: ensure google script loaded, button ref exists, and Client ID is populated
       if (!window || !window.google || !window.google.accounts || !buttonRef.current) return;
       
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-      console.log("Client id found inside initialize is:", clientId);
-      
+      console.log("Client id found is :", clientId);
       if (!clientId) {
-        console.error("CRITICAL: NEXT_PUBLIC_GOOGLE_CLIENT_ID is not loaded.");
+        console.error("CRITICAL: NEXT_PUBLIC_GOOGLE_CLIENT_ID is not loaded. Check your .env.local file and restart your terminal server.");
         return;
       }
 
@@ -60,8 +60,9 @@ export default function AdminLoginPage() {
     } else {
       script.onload = initializeGoogle;
     }
+    
+    // Note: We intentionally avoid removing the script on unmount so it stays active in the document global cache
   }, []);
-
 
   async function handleGoogleCredential(googleResponse) {
     setStatus("loading");
