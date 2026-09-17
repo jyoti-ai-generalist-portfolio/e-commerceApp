@@ -2,12 +2,12 @@ services:
   web:
     build:
       context: ./ecommerce-admin
-      dockerfile: app/Dockerfile.dev
+      dockerfile: Dockerfile.dev
     container_name: e-Commerce-App
     ports:
       - "3000:3000"
     env_file:
-      - ./ecommerce-admin/app/.env.local
+      - ./ecommerce-admin/.env.local
     environment:
       - NODE_ENV=development
       - WATCHPACK_POLLING=true
@@ -15,7 +15,7 @@ services:
     volumes:
       # Mount workspace directory for Hot Module Replacement (HMR)
       
-      - ./ecommerce-admin/app:/ecommerce-admin/app
+      - ./ecommerce-admin:/ecommerce-admin
       # Prevent local host node_modules from overriding container node_modules
       - /ecommerce-admin/node_modules
       - /ecommerce-admin/.next

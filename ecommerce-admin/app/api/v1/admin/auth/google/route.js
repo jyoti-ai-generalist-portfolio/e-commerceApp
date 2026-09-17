@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
+
+
+//import { verifyGoogleIdToken } from "../../../../lib/googleAuth";
+// Relative path fix (4 levels up from app/api/v1/admin/auth/google)
+
 import { verifyGoogleIdToken } from "../../../../../../lib/googleAuth";
+//import { verifyGoogleIdToken } from "../../../../../../../lib/googleAuth";
 import { supabaseAdmin } from "../../../../../../lib/supabaseClient";
 import { signAdminToken } from "../../../../../../lib/jwt";
 
+// Changed above route to go up 7 directories for lib not 6 directories
 export async function POST(request) {
   let body;
   try {
     body = await request.json();
+    console.log ("body found is ", body);
   } catch {
     return NextResponse.json(
       { success: false, error: "Invalid JSON body." },
@@ -15,13 +23,14 @@ export async function POST(request) {
   }
 
   const { id_token } = body;
+
   if (!id_token) {
     return NextResponse.json(
       { success: false, error: "id_token is required." },
       { status: 400 }
     );
   }
-
+  console.log ("Google ID Token found is ",id_token );
   // 1. Verify the Google id_token (signature + audience + expiry).
   let identity;
   try {
@@ -32,7 +41,7 @@ export async function POST(request) {
       { status: 401 }
     );
   }
-
+  console.error("Verification failed for token:", id_token, "Error details:", err);
   // 2. Look up the admins table, case-insensitively.
   const { data: adminRecord, error: dbError } = await supabaseAdmin
     .from("admins")
@@ -58,6 +67,7 @@ export async function POST(request) {
       { status: 403 }
     );
   }
+  console.log ("Before signAdminToken ");
 
   // 4. Issue the admin JWT.
   const token = signAdminToken({
@@ -65,6 +75,7 @@ export async function POST(request) {
     email: adminRecord.admin_email,
     name: adminRecord.admin_name,
   });
+  console.log ("After signAdminToken returning token ", token);
 
   const response = NextResponse.json({
     success: true,

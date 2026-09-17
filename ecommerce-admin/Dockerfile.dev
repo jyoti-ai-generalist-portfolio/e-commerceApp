@@ -6,10 +6,10 @@ FROM node:24-alpine
 WORKDIR /ecommerce-admin
 
 # Step 3: Copy package.json and package-lock.json first to leverage Docker cache
-COPY app/package*.json ./
+COPY package*.json ./
 
 # Copy lockfile and package manifest
-COPY app/pnpm-lock.yaml* ./
+COPY pnpm-lock.yaml* ./
 
 # Enable corepack to use pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -20,14 +20,14 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Install dependencies
 #RUN pnpm install
 # Step 4: Install dependencies using a Docker cache mount to avoid store issues
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --no-frozen-lockfile
 
 # Step 5: Copy the rest of your application code
 # FIX HERE: Step 5: Change working directory temporarily to copy everything correctly
 #WORKDIR /ecommerce-admin
 #COPY . .
 # Set working directory back to app for execution
-COPY app/ ./app/
+COPY . .
 
 # Step 6: Expose the port your app runs on
 EXPOSE 3000

@@ -10,7 +10,7 @@ export async function GET(request) {
       { status: 401 }
     );
   }
-
+  console.log ("In Me - before verifyAdminToken");
   const payload = verifyAdminToken(token);
   if (!payload) {
     return NextResponse.json(
@@ -18,7 +18,7 @@ export async function GET(request) {
       { status: 401 }
     );
   }
-
+  console.log ("In Me - after verifying token checking in the table ");
   // Re-check the admins table so revoked admins lose access even with a
   // still-valid token (per UC-01 "Revoked Admin Rights" edge case).
   const { data: adminRecord, error } = await supabaseAdmin
@@ -26,14 +26,14 @@ export async function GET(request) {
     .select("id, admin_email, admin_name")
     .eq("id", payload.admin_id)
     .maybeSingle();
-
+  console.log ("In Me - after checking table for admin");
   if (error || !adminRecord) {
     return NextResponse.json(
       { success: false, error: "Administrator access has been revoked." },
       { status: 403 }
     );
   }
-
+  console.log ("In Me - admin confirmed going back with ", adminRecord.id, " ", adminRecord.admin_email);
   return NextResponse.json({
     success: true,
     data: {
