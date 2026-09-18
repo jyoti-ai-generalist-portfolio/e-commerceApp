@@ -1,33 +1,49 @@
-import { serve } from "https://deno.land"
-import * as djwt from "https://deno.land"
+import jwt from "npm:jsonwebtoken";
 
-serve(async (req) => {
-  // 1. Get the admin token forwarded from Next.js
+export class AdminAuthError extends Error {
+  status: number;
+  constructor(message: string, status = 401) {
+    super(message);
+    this.status = status;
+    this.name = "AdminAuthError";
+  }
+}
+
+/**
+ * Validates the custom Next.js admin token on incoming edge requests
+ */
+export async function requireAdmin(req: Request) {
   const adminToken = req.headers.get("X-Admin-Token");
   if (!adminToken) {
-    return new Response(JSON.stringify({ error: "Unauthorized: Missing Admin Token" }), { status: 401 });
+    throw new AdminAuthError("Access Denied: Missing administrative token context.", 401);
+  }
+
+  const jwtSecret = Deno.env.get("JWT_SECRET");
+  if (!jwtSecret) {
+    console.error("CRITICAL: JWT_SECRET environment variable is missing on this Supabase Edge container.");
+    throw new AdminAuthError("Internal configuration error.", 500);
   }
 
   try {
-    // 2. Import your JWT Secret Key inside the edge function environment
-    const jwtSecret = Deno.env.get("JWT_SECRET") || ""; 
-    const encoder = new TextEncoder();
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      encoder.encode(jwtSecret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["verify"]
-    );
-
-    // 3. Verify the token signature matches your Next.js app
-    const payload = await djwt.verify(adminToken, cryptoKey);
+    const payload = jwt.verify(adminToken, jwtSecret) as any;
     
-    console.log("Edge function acting on behalf of Admin:", payload.email);
+    if (payload.role !== "admin") {
+      throw new AdminAuthError("Access Denied: Account lacks administrator privileges.", 403);
+    }
     
-    // Now proceed with your backend logic securely...
-    
+    // Return payload context if your endpoints need access to admin metadata (e.g., payload.email)
+    return payload;
   } catch (err) {
-    return new Response(JSON.stringify({ error: "Invalid Admin Session Token" }), { status: 403 });
+    throw new AdminAuthError("Access Denied: Your administrator session has expired or is invalid.", 401);
   }
-})
+}
+
+/**
+ * Kept intact for your database handler layer inside index.ts
+ */
+export function serviceClient() {
+  const { createClient } = require("npm:@supabase/supabase-js");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
