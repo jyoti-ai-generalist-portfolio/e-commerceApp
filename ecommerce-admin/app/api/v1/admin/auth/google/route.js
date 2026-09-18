@@ -48,7 +48,9 @@ export async function POST(request) {
     .select("id, admin_email, admin_name")
     .ilike("admin_email", identity.email)
     .maybeSingle();
+  console.log ("I am in auth/google/route.js - i have checked admin is valid");
 
+  
   if (dbError) {
     return NextResponse.json(
       { success: false, error: "Unable to verify administrator status." },
@@ -68,6 +70,16 @@ export async function POST(request) {
     );
   }
   console.log ("Before signAdminToken ");
+  /*const { data, error } = await supabaseAdmin.auth.getSession();
+  
+  if (error || !data.session) {
+    console.error('No active session found:', error);
+    return null;
+  }
+
+  // The access_token is the JWT token
+  const jwtToken = data.session.access_token;
+  console.log("Got the jwtToken from Supabase Session as ", jwtToken);*/
 
   // 4. Issue the admin JWT.
   const token = signAdminToken({

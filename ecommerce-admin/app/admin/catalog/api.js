@@ -4,7 +4,7 @@ import { supabaseAdmin } from "../../../lib/supabaseClient";
 
 const FUNCTIONS_BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1`;
 
-async function authHeader(token) {
+/*async function authHeader(token) {
   if (!token) throw new Error("Not authenticated.");
   
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -14,7 +14,20 @@ async function authHeader(token) {
     "Authorization": `Bearer ${serviceKey}`,
     "apikey": serviceKey
   };
+}*/
+async function authHeader(token) {
+  if (!token) throw new Error("Not authenticated.");
+  
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) throw new Error("Server configuration error: Service key missing.");
+  
+  return { 
+    "Authorization": `Bearer ${serviceKey}`, // Keeps supabase proxy auth happy
+    "apikey": serviceKey,
+    "X-Admin-Token": token // ← Access token forwarded explicitly to Edge Functions
+  };
 }
+
 
 async function handleResponse(res) {
   const body = await res.json().catch(() => ({}));
