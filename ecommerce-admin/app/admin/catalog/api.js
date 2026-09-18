@@ -1,19 +1,19 @@
-// app/admin/catalog/api.js
-//
-// Thin fetch wrappers around the admin-* Supabase Edge Functions.
-// Assumes a shared Supabase client is already set up in your project at
-// lib/supabaseClient.js (used elsewhere in this app) — adjust the import
-// path below if yours lives somewhere else.
+"use server"; // Enforces that all functions in this file run ONLY on the server
 
-import { supabase } from "../../../lib/supabaseClient";
+import { supabaseAdmin } from "../../../lib/supabaseClient";
 
-const FUNCTIONS_BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL}/functions/v1`;
+const FUNCTIONS_BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1`;
 
-async function authHeader() {
-  const { data } = await supabase.auth.getSession();
-  const token = data?.session?.access_token;
+async function authHeader(token) {
   if (!token) throw new Error("Not authenticated.");
-  return { Authorization: `Bearer ${token}` };
+  
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) throw new Error("Server configuration error: Service key missing.");
+  
+  return { 
+    "Authorization": `Bearer ${serviceKey}`,
+    "apikey": serviceKey
+  };
 }
 
 async function handleResponse(res) {
@@ -27,16 +27,21 @@ async function handleResponse(res) {
   return body;
 }
 
+// ... Keep your standard listCategories, listProducts, etc. exactly as they were using this authHeader pattern ...
+
 // ---- Categories ----
 
-export async function listCategories() {
-  const headers = await authHeader();
-  const res = await fetch(`${FUNCTIONS_BASE}/admin-categories`, { headers });
+export async function listCategories(token) {
+  const headers = await authHeader(token);
+  const res = await fetch(`${FUNCTIONS_BASE}/admin-categories`, { 
+    method: "GET",
+    headers 
+  });
   return handleResponse(res);
 }
 
-export async function createCategory({ name, slug }) {
-  const headers = await authHeader();
+export async function createCategory(token, { name, slug }) {
+  const headers = await authHeader(token);
   const res = await fetch(`${FUNCTIONS_BASE}/admin-categories`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
@@ -45,8 +50,8 @@ export async function createCategory({ name, slug }) {
   return handleResponse(res);
 }
 
-export async function updateCategory(id, updates) {
-  const headers = await authHeader();
+export async function updateCategory(token, id, updates) {
+  const headers = await authHeader(token);
   const res = await fetch(`${FUNCTIONS_BASE}/admin-categories/${id}`, {
     method: "PUT",
     headers: { ...headers, "Content-Type": "application/json" },
@@ -55,8 +60,8 @@ export async function updateCategory(id, updates) {
   return handleResponse(res);
 }
 
-export async function deleteCategory(id) {
-  const headers = await authHeader();
+export async function deleteCategory(token, id) {
+  const headers = await authHeader(token);
   const res = await fetch(`${FUNCTIONS_BASE}/admin-categories/${id}`, {
     method: "DELETE",
     headers,
@@ -66,17 +71,21 @@ export async function deleteCategory(id) {
 
 // ---- Products ----
 
-export async function listProducts({ page = 1, pageSize = 20, categoryId, search } = {}) {
-  const headers = await authHeader();
+export async function listProducts(token, { page = 1, pageSize = 20, categoryId, search } = {}) {
+  const headers = await authHeader(token);
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (categoryId) params.set("category_id", categoryId);
   if (search) params.set("search", search);
-  const res = await fetch(`${FUNCTIONS_BASE}/admin-catalog-products?${params}`, { headers });
+  
+  const res = await fetch(`${FUNCTIONS_BASE}/admin-catalog-products?${params.toString()}`, { 
+    method: "GET",
+    headers 
+  });
   return handleResponse(res);
 }
 
-export async function createProduct(payload) {
-  const headers = await authHeader();
+export async function createProduct(token, payload) {
+  const headers = await authHeader(token);
   const res = await fetch(`${FUNCTIONS_BASE}/admin-catalog-products`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
@@ -85,8 +94,8 @@ export async function createProduct(payload) {
   return handleResponse(res);
 }
 
-export async function updateProduct(id, payload) {
-  const headers = await authHeader();
+export async function updateProduct(token, id, payload) {
+  const headers = await authHeader(token);
   const res = await fetch(`${FUNCTIONS_BASE}/admin-catalog-products/${id}`, {
     method: "PUT",
     headers: { ...headers, "Content-Type": "application/json" },
@@ -95,8 +104,8 @@ export async function updateProduct(id, payload) {
   return handleResponse(res);
 }
 
-export async function deleteProduct(id) {
-  const headers = await authHeader();
+export async function deleteProduct(token, id) {
+  const headers = await authHeader(token);
   const res = await fetch(`${FUNCTIONS_BASE}/admin-catalog-products/${id}`, {
     method: "DELETE",
     headers,
@@ -104,8 +113,8 @@ export async function deleteProduct(id) {
   return handleResponse(res);
 }
 
-export async function adjustStock(id, delta, reason) {
-  const headers = await authHeader();
+export async function adjustStock(token, id, delta, reason) {
+  const headers = await authHeader(token);
   const res = await fetch(`${FUNCTIONS_BASE}/admin-catalog-stock/${id}`, {
     method: "PATCH",
     headers: { ...headers, "Content-Type": "application/json" },
@@ -114,13 +123,11 @@ export async function adjustStock(id, delta, reason) {
   return handleResponse(res);
 }
 
-export async function uploadProductImage(file) {
-  const headers = await authHeader();
-  const formData = new FormData();
-  formData.append("file", file);
+export async function uploadProductImage(token, formData) {
+  const headers = await authHeader(token);
   const res = await fetch(`${FUNCTIONS_BASE}/admin-media-upload`, {
     method: "POST",
-    headers, // do NOT set Content-Type — the browser sets the multipart boundary
+    headers, // Fetch handles multi-part boundary additions automatically when given FormData
     body: formData,
   });
   return handleResponse(res);

@@ -1,16 +1,27 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers"; // 1. Import Next.js cookies utility
 import { verifyAdminToken, getTokenFromRequest } from "../../../../../../lib/jwt";
 import { supabaseAdmin } from "../../../../../../lib/supabaseClient";
 
 export async function GET(request) {
-  const token = getTokenFromRequest(request);
+  // Try retrieving token from headers first
+  let token = getTokenFromRequest(request);
+  
+  // 2. FALLBACK: If header is empty, read it straight out of your HTTP cookies
+  if (!token) {
+    const cookieStore = await cookies();
+    // Replace 'admin_token' with your exact session cookie name if it differs!
+    token = cookieStore.get("admin_token")?.value || cookieStore.get("token")?.value;
+  }
+
   if (!token) {
     return NextResponse.json(
       { success: false, error: "No session token provided." },
       { status: 401 }
     );
   }
-  console.log ("In Me - before verifyAdminToken");
+  
+  console.log("In Me - before verifyAdminToken");
   const payload = verifyAdminToken(token);
   if (!payload) {
     return NextResponse.json(
@@ -18,22 +29,21 @@ export async function GET(request) {
       { status: 401 }
     );
   }
-  console.log ("In Me - after verifying token checking in the table ");
-  // Re-check the admins table so revoked admins lose access even with a
-  // still-valid token (per UC-01 "Revoked Admin Rights" edge case).
+  
+  console.log("In Me - after verifying token checking in the table ");
   const { data: adminRecord, error } = await supabaseAdmin
     .from("admins")
     .select("id, admin_email, admin_name")
     .eq("id", payload.admin_id)
     .maybeSingle();
-  console.log ("In Me - after checking table for admin");
+    
   if (error || !adminRecord) {
     return NextResponse.json(
       { success: false, error: "Administrator access has been revoked." },
       { status: 403 }
     );
   }
-  console.log ("In Me - admin confirmed going back with ", adminRecord.id, " ", adminRecord.admin_email);
+
   return NextResponse.json({
     success: true,
     data: {
@@ -42,6 +52,7 @@ export async function GET(request) {
         email: adminRecord.admin_email,
         name: adminRecord.admin_name,
       },
+      access_token: token,
     },
   });
 }

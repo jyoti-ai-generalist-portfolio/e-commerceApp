@@ -155,6 +155,31 @@ export default function ProductFormDrawer({
                   <p className="mt-1 text-xs text-red-600">{errors.category_id}</p>
                 )}
               </div>
+              <div>
+                  <label className="block text-sm font-medium text-gray-700">Category</label>
+                      {categories.filter((c) => c.is_active).length === 0 ? (
+                      <div className="mt-1 rounded-md bg-amber-50 border border-amber-200 p-2 text-xs text-amber-700">
+                    ⚠️ No active categories found. Please create a category first before adding products.
+                      </div>
+                    ) : (
+                      <select
+                        {...field("category_id")}
+                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                     >
+                    <option value="">Select a category…</option>
+                    {categories
+                      .filter((c) => c.is_active)
+                      .map((c) => (
+                      <option key={c.id} value={c.id}>
+                       {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  )}
+                  {errors.category_id && (
+                    <p className="mt-1 text-xs text-red-600">{errors.category_id}</p>
+                   )}
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">Description</label>

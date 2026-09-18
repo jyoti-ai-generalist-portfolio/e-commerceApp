@@ -31,6 +31,9 @@ export class AdminAuthError extends Error {
  * Verifies the caller's JWT and confirms their email exists in `admins`.
  * Throws AdminAuthError (401 for bad/missing token, 403 for authenticated
  * non-admin) on failure. Returns the authenticated user on success.
+ * 
+ * MODIFICATION: Natively short-circuits and authorizes if a trusted
+ * server-side service key is used to invoke the function.
  */
 export async function requireAdmin(req: Request) {
   const authHeader = req.headers.get("Authorization") ?? "";
@@ -40,6 +43,15 @@ export async function requireAdmin(req: Request) {
     throw new AdminAuthError("Missing bearer token.", 401);
   }
 
+  // 1. SECURE SHORT-CIRCUIT: Check if this is an internal Next.js Server Action call
+  if (token === SERVICE_ROLE_KEY) {
+    return {
+      user: { id: "system-action", email: "server-action@system.internal" },
+      admin: { id: "system", admin_email: "server-action@system.internal", admin_name: "System Server Action" }
+    };
+  }
+
+  // 2. FALLBACK: Handle standard direct browser/mobile client application requests
   const supabase = serviceClient();
   const { data: userData, error: userError } = await supabase.auth.getUser(
     token,
