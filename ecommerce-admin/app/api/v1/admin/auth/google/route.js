@@ -69,25 +69,25 @@ export async function POST(request) {
       { status: 403 }
     );
   }
-  console.log ("Before signAdminToken ");
-  /*const { data, error } = await supabaseAdmin.auth.getSession();
-  
-  if (error || !data.session) {
-    console.error('No active session found:', error);
-    return null;
+  /*console.log ("Before signAdminToken ");
+  // 3. Ensure secret is available
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.error("JWT_SECRET is missing from environment variables.");
+    return NextResponse.json(
+      { success: false, error: "Server configuration error." },
+      { status: 500 }
+    );
   }
-
-  // The access_token is the JWT token
-  const jwtToken = data.session.access_token;
-  console.log("Got the jwtToken from Supabase Session as ", jwtToken);*/
-
+*/
   // 4. Issue the admin JWT.
   const token = signAdminToken({
     adminId: adminRecord.id,
     email: adminRecord.admin_email,
     name: adminRecord.admin_name,
-  });
-  console.log ("After signAdminToken returning token ", token);
+  }  
+  );
+  console.log ("After signAdminToken returning after locking the token");
 
   const response = NextResponse.json({
     success: true,

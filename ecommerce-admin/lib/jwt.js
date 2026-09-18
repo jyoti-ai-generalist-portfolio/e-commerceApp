@@ -7,7 +7,9 @@ if (!JWT_SECRET) {
   console.warn("JWT_SECRET is not set. Admin tokens cannot be signed or verified.");
 }
 
+
 export function signAdminToken({ adminId, email, name }) {
+  console.log("Got JWT secret here inside signAdminToken function ", JWT_SECRET);
   return jwt.sign(
     { admin_id: adminId, email, name, role: "admin" },
     JWT_SECRET,

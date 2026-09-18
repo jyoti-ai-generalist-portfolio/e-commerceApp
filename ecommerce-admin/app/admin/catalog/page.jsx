@@ -53,6 +53,7 @@ export default function CatalogManager() {
         
         const body = await res.json();
         if (body.success && body.data?.access_token) {
+          console.log("Setting auth token inside page.jsx ", body.data.access_token);
           setAuthToken(body.data.access_token);
         } else {
           // DIAGNOSTIC ALERT: Find out what error string your server returned
