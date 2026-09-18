@@ -1,4 +1,8 @@
+// supabase/functions/_shared/adminAuth.ts
+
 import jwt from "npm:jsonwebtoken";
+// 🌟 FIX: Use the standard Deno/ESM import syntax at the top of the file
+import { createClient } from "npm:@supabase/supabase-js"; 
 
 export class AdminAuthError extends Error {
   status: number;
@@ -31,7 +35,6 @@ export async function requireAdmin(req: Request) {
       throw new AdminAuthError("Access Denied: Account lacks administrator privileges.", 403);
     }
     
-    // Return payload context if your endpoints need access to admin metadata (e.g., payload.email)
     return payload;
   } catch (err) {
     throw new AdminAuthError("Access Denied: Your administrator session has expired or is invalid.", 401);
@@ -39,10 +42,9 @@ export async function requireAdmin(req: Request) {
 }
 
 /**
- * Kept intact for your database handler layer inside index.ts
+ * 🌟 FIX: Cleaned up client initializer without using Node.js 'require'
  */
 export function serviceClient() {
-  const { createClient } = require("npm:@supabase/supabase-js");
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   return createClient(supabaseUrl, supabaseServiceKey);
