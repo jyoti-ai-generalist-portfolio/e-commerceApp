@@ -1,21 +1,11 @@
 // supabase/functions/_shared/adminAuth.ts
-//
-// DEVIATION FROM USE CASE 19 SPEC: the use case assumes a `role === 'admin'`
-// JWT claim. Your actual schema has no role column anywhere — it has a
-// standalone `admins` table (admin_email, admin_name) instead. So "is this
-// caller an admin" is answered by looking up their authenticated email in
-// `admins`, not by reading a claim. This helper does that lookup and is
-// shared by every admin-catalog-* function.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 export function serviceClient() {
-  // Service-role client: bypasses RLS. Only ever used server-side, after
-  // requireAdmin() has verified the caller. Never expose this key to the
-  // front end.
   return createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 }
 
@@ -29,11 +19,7 @@ export class AdminAuthError extends Error {
 
 /**
  * Verifies the caller's JWT and confirms their email exists in `admins`.
- * Throws AdminAuthError (401 for bad/missing token, 403 for authenticated
- * non-admin) on failure. Returns the authenticated user on success.
- * 
- * MODIFICATION: Natively short-circuits and authorizes if a trusted
- * server-side service key is used to invoke the function.
+ * Supports Google OAuth configurations and Next.js backend Server Action triggers.
  */
 export async function requireAdmin(req: Request) {
   const authHeader = req.headers.get("Authorization") ?? "";
@@ -43,7 +29,8 @@ export async function requireAdmin(req: Request) {
     throw new AdminAuthError("Missing bearer token.", 401);
   }
 
-  // 1. SECURE SHORT-CIRCUIT: Check if this is an internal Next.js Server Action call
+  // 1. TRUSTED BACKEND SHORT-CIRCUIT:
+  // If the request uses your secure master system key, authorize it immediately
   if (token === SERVICE_ROLE_KEY) {
     return {
       user: { id: "system-action", email: "server-action@system.internal" },
@@ -51,25 +38,29 @@ export async function requireAdmin(req: Request) {
     };
   }
 
-  // 2. FALLBACK: Handle standard direct browser/mobile client application requests
+  // 2. OAUTH FALLBACK: Handle direct browser traffic signatures
   const supabase = serviceClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser(
-    token,
-  );
-
+  const { data: userData, error: userError } = await supabase.auth.getUser(token);
+  console.log("Inside supabase Edge function oAuth code - token was ",token);
+  console.log("Inside supabase Edge function oAuth code - userData ",userData);
   if (userError || !userData?.user) {
     throw new AdminAuthError("Invalid or expired session.", 401);
   }
 
   const user = userData.user;
-  if (!user.email) {
-    throw new AdminAuthError("Session has no associated email.", 403);
+  
+  // Google Auth users sometimes store their email in user_metadata instead of the root key
+  const adminEmail = user.email || user.user_metadata?.email;
+  
+  if (!adminEmail) {
+    throw new AdminAuthError("Session has no associated email identity.", 403);
   }
 
+  // 3. DATABASE VERIFICATION GATEKEEPER
   const { data: adminRow, error: adminError } = await supabase
     .from("admins")
     .select("id, admin_email, admin_name")
-    .eq("admin_email", user.email)
+    .eq("admin_email", adminEmail)
     .maybeSingle();
 
   if (adminError) {
