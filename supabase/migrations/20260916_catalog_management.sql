@@ -17,6 +17,9 @@
 alter table public.categories
   add column if not exists is_active boolean not null default true;
 
+alter table public.categories
+  add column if not exists created_at timestamptz not null default now();
+  
 -- The existing "Public can view categories" policy is USING (true), so on
 -- its own it would keep exposing soft-deleted categories to storefront
 -- reads even after this column exists. Tighten it so the DB itself
