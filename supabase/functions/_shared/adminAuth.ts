@@ -41,8 +41,7 @@ export async function requireAdmin(req: Request) {
   // 2. OAUTH FALLBACK: Handle direct browser traffic signatures
   const supabase = serviceClient();
   const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  console.log("Inside supabase Edge function oAuth code - token was ",token);
-  console.log("Inside supabase Edge function oAuth code - userData ",userData);
+
   if (userError || !userData?.user) {
     throw new AdminAuthError("Invalid or expired session.", 401);
   }
