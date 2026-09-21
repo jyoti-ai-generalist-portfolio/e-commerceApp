@@ -6,8 +6,8 @@
 // Wires together CategoryGrid, ProductTable, and ProductFormDrawer, and
 // owns all the data fetching/mutation calls in api.js.
 
+
 import { useEffect, useState, useCallback } from "react";
-import AdminSidebar from "../../../components/AdminSidebar";
 import CategoryGrid from "./components/CategoryGrid";
 import ProductTable from "./components/ProductTable";
 import ProductFormDrawer from "./components/ProductFormDrawer";
@@ -38,7 +38,7 @@ export default function CatalogManager() {
     setTimeout(() => setToast(null), 3500);
   }
 
-  // FETCH TOKEN EXACTLY ONCE ON INITIAL MOUNT
+    // FETCH TOKEN EXACTLY ONCE ON INITIAL MOUNT
   useEffect(() => {
     async function initializeAuth() {
       try {
@@ -69,6 +69,7 @@ export default function CatalogManager() {
     }
     initializeAuth();
   }, []);
+
 
   // 3. REFRACTOR LOADING METHODS TO DEPEND ON AUTH TOKEN STATE
   const loadCategories = useCallback(async () => {
@@ -132,7 +133,7 @@ export default function CatalogManager() {
       showToast("error", err.message || "Could not update category.");
     }
   }
-/*
+
   async function handleDeleteCategory(id) {
     try {
       const res = await api.deleteCategory(authToken, id);
@@ -142,30 +143,6 @@ export default function CatalogManager() {
       showToast("error", err.message || "Could not delete category.");
     }
   }
-*/
-
-  async function handleDeleteCategory(id) {
-    // 1. Client-side protection check: Verify if any product is still linked to this category ID
-    const hasLinkedProducts = products.some((product) => product.category_id === id);
-
-    if (hasLinkedProducts) {
-      showToast(
-        "error", 
-        "Cannot delete category: There are still products linked to this category."
-      );
-      return; // Stop execution before contacting the server/database
-    }
-
-    // 2. Fallback to normal delete operations if no products are attached
-    try {
-      const res = await api.deleteCategory(authToken, id);
-      showToast("success", res.warning || "Category removed.");
-      loadCategories();
-    } catch (err) {
-      showToast("error", err.message || "Could not delete category.");
-    }
-  }
-
 
   // ---- Product handlers ----
 
@@ -230,86 +207,68 @@ export default function CatalogManager() {
   }
 
   return (
-    <div className="flex min-h-screen bg-canvas">
-      {/* Sidebar with active link indicator mapping to "Catalog" */}
-      <AdminSidebar active="Catalog" />
-
-      <div className="flex-1">
-        <main className="mx-auto max-w-6xl px-6 py-6">
-          
-          {/* Back navigation link to the Dashboard page */}
-          <div className="mb-4">
-            <a 
-              href="/admin/dashboard" 
-              className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-            >
-              ← Back to Dashboard
-            </a>
-          </div>
-
-          <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-gray-900">Catalog Management</h1>
-            <button
-              type="button"
-              onClick={openAddProduct}
-              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-              + Add Product
-            </button>
-          </div>
-
-          {toast && (
-            <div
-              className={`mb-4 rounded-md px-4 py-2 text-sm ${
-                toast.type === "success"
-                  ? "bg-green-50 text-green-700 border border-green-200"
-                  : "bg-red-50 text-red-700 border border-red-200"
-              }`}
-            >
-              {toast.message}
-            </div>
-          )}
-
-          <CategoryGrid
-            categories={categories}
-            loading={categoriesLoading}
-            onCreate={handleCreateCategory}
-            onUpdate={handleUpdateCategory}
-            onDelete={handleDeleteCategory}
-          />
-
-          <ProductTable
-            products={products}
-            loading={productsLoading}
-            page={page}
-            pageSize={PAGE_SIZE}
-            total={total}
-            categories={categories}
-            searchTerm={search}
-            onSearchChange={(v) => {
-              setPage(1);
-              setSearch(v);
-            }}
-            categoryFilter={categoryFilter}
-            onCategoryFilterChange={(v) => {
-              setPage(1);
-              setCategoryFilter(v);
-            }}
-            onPageChange={setPage}
-            onEdit={openEditProduct}
-            onDelete={handleDeleteProduct}
-            onAdjustStock={handleAdjustStock}
-          />
-
-          <ProductFormDrawer
-            open={drawerOpen}
-            product={editingProduct}
-            categories={categories}
-            onClose={() => setDrawerOpen(false)}
-            onSubmit={handleSubmitProduct}
-          />
-        </main>
+    <div className="mx-auto max-w-6xl px-4 py-6">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-gray-900">Catalog Management</h1>
+        <button
+          type="button"
+          onClick={openAddProduct}
+          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+        >
+          + Add Product
+        </button>
       </div>
+
+      {toast && (
+        <div
+          className={`mb-4 rounded-md px-4 py-2 text-sm ${
+            toast.type === "success"
+              ? "bg-green-50 text-green-700 border border-green-200"
+              : "bg-red-50 text-red-700 border border-red-200"
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+
+      <CategoryGrid
+        categories={categories}
+        loading={categoriesLoading}
+        onCreate={handleCreateCategory}
+        onUpdate={handleUpdateCategory}
+        onDelete={handleDeleteCategory}
+      />
+
+      <ProductTable
+        products={products}
+        loading={productsLoading}
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        categories={categories}
+        searchTerm={search}
+        onSearchChange={(v) => {
+          setPage(1);
+          setSearch(v);
+        }}
+        categoryFilter={categoryFilter}
+        onCategoryFilterChange={(v) => {
+          setPage(1);
+          setCategoryFilter(v);
+        }}
+        onPageChange={setPage}
+        onEdit={openEditProduct}
+        onDelete={handleDeleteProduct}
+        onAdjustStock={handleAdjustStock}
+      />
+
+      <ProductFormDrawer
+        open={drawerOpen}
+        product={editingProduct}
+        categories={categories}
+        onClose={() => setDrawerOpen(false)}
+        onSubmit={handleSubmitProduct}
+      />
     </div>
   );
 }

@@ -43,6 +43,15 @@ export default function CategoryGrid({
     }
     setSubmitting(true);
     try {
+
+      /* Added code for generating user friendly slug */
+      const trimmedName = form.name.trim();
+    // Generate a URL-friendly slug (e.g., "T-Shirts" becomes "t-shirts")
+    const generatedSlug = trimmedName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)+/g, "");
+
       if (editingId) {
         await onUpdate(editingId, { name: form.name.trim() });
       } else {
