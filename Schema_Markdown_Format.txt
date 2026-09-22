@@ -11,6 +11,23 @@ Links Supabase auth users to application-level profile data.
 | `full_name` | `text` |  Nullable |
 | `created_at` | `timestamptz` |  |
 
+
+## Table `customer_addresses`
+
+### Columns
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary |
+| `profile_id` | 'uuid'|  Foreign Key to public.profiles.id |
+| `address_line1` | `text`|  
+| `address_line2` | `text`|  
+| `city` | `text`|  
+| `pincode` | `text`| 
+| `mobilenumber` | `text`|   
+| `created_at` | `timestamptz` |  |
+constraint customer_addresses_profile_id_fkey foreign KEY (profile_id) references profiles (id) on update CASCADE on delete CASCADE
+
+
 ## Table `categories`
 
 ### Columns

@@ -1,21 +1,24 @@
 services:
   web:
     build:
-      context: ./ecommerce-admin
+      context: .                           # Looks at workspace root e-commerceApp
       dockerfile: Dockerfile.dev
     container_name: e-Commerce-App
     ports:
-      - "3000:3000"
+      - "3000:3000"                       # Admin Port
+      - "3001:3001"                       # Customer Port
     env_file:
-      - ./ecommerce-admin/.env.local
+      - ./.env.local                      # Reference path at root
     environment:
       - NODE_ENV=development
       - WATCHPACK_POLLING=true
-      # Add your external Supabase credentials here:
     volumes:
-      # Mount workspace directory for Hot Module Replacement (HMR)
+      # 1. Bind mount the host root directory (e-commerceApp) to the container working directory (/app)
+      - .:/app
       
-      - ./ecommerce-admin:/ecommerce-admin
-      # Prevent local host node_modules from overriding container node_modules
-      - /ecommerce-admin/node_modules
-      - /ecommerce-admin/.next
+      # 2. Anonymous volumes targeting the /app container paths to protect isolated container dependencies
+      - /app/node_modules
+      - /app/ecommerce-admin/node_modules
+      - /app/ecommerce-admin/.next
+      - /app/ecommerce-customer/node_modules
+      - /app/ecommerce-customer/.next

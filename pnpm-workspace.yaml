@@ -1,2 +1,5 @@
 minimumReleaseAgeExclude:
   - google-auth-library@11.1.0
+packages:
+  - 'ecommerce-admin'
+  - 'ecommerce-customer'
