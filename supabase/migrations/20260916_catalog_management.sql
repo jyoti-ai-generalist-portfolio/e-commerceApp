@@ -13,12 +13,7 @@
 --    overwrites. The Supabase JS client can't express a raw SQL increment,
 --    so this adds a Postgres function the edge function calls via RPC.
 
--- 1. Soft-delete flag for categories
-alter table public.categories
-  add column if not exists is_active boolean not null default true;
-
-alter table public.categories
-  add column if not exists created_at timestamptz not null default now();
+-
   
 -- The existing "Public can view categories" policy is USING (true), so on
 -- its own it would keep exposing soft-deleted categories to storefront

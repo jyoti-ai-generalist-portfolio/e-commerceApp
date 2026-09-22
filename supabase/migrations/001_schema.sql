@@ -36,6 +36,23 @@ create table public.profiles (
 
 
 comment on table public.profiles is 'Links Supabase auth users to application-level profile data.';
+-- ============================================================================
+-- 1. customer_addresses
+-- ============================================================================
+create table public.customer_addresses (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamp with time zone not null default now(),
+  profile_id uuid not null,
+  address_line1 character varying null,
+  address_line2 character varying null,
+  city character varying null,
+  pincode character varying null,
+  mobilenumber character varying null,
+  constraint customer_addresses_pkey primary key (id),
+  constraint customer_addresses_profile_id_fkey foreign KEY (profile_id) references profiles (id) on update CASCADE on delete CASCADE
+);
+
+
 
 -- ============================================================================
 -- 2. categories
@@ -45,7 +62,8 @@ create table public.categories (
   id    uuid primary key default gen_random_uuid(),
   name  text not null unique,
   slug  text not null unique,
-  is_active boolean not null default true
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
 );
 
 -- ============================================================================
