@@ -27,4 +27,4 @@ EXPOSE 3001
 ENV WATCHPACK_POLLING=true
 
 # Step 7: Boot up both development servers concurrently using pnpm workspace filter
-CMD ["pnpm", "--filter", "*", "run", "dev"]
+CMD ["pnpm", "run", "dev"]

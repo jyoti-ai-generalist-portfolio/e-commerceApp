@@ -48,7 +48,6 @@ create table public.customer_addresses (
   city character varying null,
   pincode character varying null,
   mobilenumber character varying null,
-  constraint customer_addresses_pkey primary key (id),
   constraint customer_addresses_profile_id_fkey foreign KEY (profile_id) references profiles (id) on update CASCADE on delete CASCADE
 );
 

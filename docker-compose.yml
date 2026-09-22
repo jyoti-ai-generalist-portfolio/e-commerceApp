@@ -1,11 +1,30 @@
 services:
-  web:
+  ecommerce-admin:
     build:
-      context: .                           # Looks at workspace root e-commerceApp
+      context: .                           # Looks at workspace root
       dockerfile: Dockerfile.dev
-    container_name: e-Commerce-App
+    container_name: ecommerce-admin
+    command: pnpm --filter ecommerce-admin run dev
     ports:
       - "3000:3000"                       # Admin Port
+    env_file:
+      - ./.env.local                      # Reference path at root
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/ecommerce-admin/node_modules
+      - /app/ecommerce-admin/.next
+
+  ecommerce-customer:
+    build:
+      context: .                           # Looks at workspace root
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-customer
+    command: pnpm --filter ecommerce-customer run dev
+    ports:
       - "3001:3001"                       # Customer Port
     env_file:
       - ./.env.local                      # Reference path at root
@@ -13,12 +32,7 @@ services:
       - NODE_ENV=development
       - WATCHPACK_POLLING=true
     volumes:
-      # 1. Bind mount the host root directory (e-commerceApp) to the container working directory (/app)
       - .:/app
-      
-      # 2. Anonymous volumes targeting the /app container paths to protect isolated container dependencies
       - /app/node_modules
-      - /app/ecommerce-admin/node_modules
-      - /app/ecommerce-admin/.next
       - /app/ecommerce-customer/node_modules
       - /app/ecommerce-customer/.next
