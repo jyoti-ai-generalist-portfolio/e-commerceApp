@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: 'Fraunces', serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #F6F4EE;
+  color: #14213D;
+}
+
+/* Visible keyboard focus everywhere, instead of the browser default. */
+:focus-visible {
+  outline: 2px solid #1F7A66;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Hide scrollbar on the horizontal category-pill rail without disabling
+   scroll — keeps the touch-swipe area clean on mobile. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
