@@ -164,8 +164,12 @@ export function AppProviders({ children }) {
   }, []);
 
   // action: 'add' | 'update' | 'delete'
+  
+  // action: 'add' | 'update' | 'delete'
   const mutateCart = useCallback(
     async (product, { quantity, action }) => {
+      // 1. AUTHENTICATED USER PATH (Database Call)
+      const targetProductId = product.id || product.product_id;
       if (session?.access_token) {
         try {
           const res = await fetch('/api/v1/cart/items', {
@@ -174,15 +178,15 @@ export function AppProviders({ children }) {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${session.access_token}`,
             },
-            body: JSON.stringify({ product_id: product.id, quantity, action }),
+            body: JSON.stringify({ product_id: targetProductId, quantity, action }), //targetProductId
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data?.error || 'Cart update failed');
 
           setCartItems((prev) => {
-            const existingIndex = prev.findIndex((i) => i.product_id === product.id);
+            const existingIndex = prev.findIndex((i) => i.product_id === targetProductId);
             if (data.new_quantity <= 0) {
-              return prev.filter((i) => i.product_id !== product.id);
+              return prev.filter((i) => i.product_id !== targetProductId); // Changed targetProductId
             }
             if (existingIndex >= 0) {
               const next = [...prev];
@@ -192,7 +196,7 @@ export function AppProviders({ children }) {
             return [
               ...prev,
               {
-                product_id: product.id,
+                product_id: targetProductId, // Changed targetProductId
                 title: product.title,
                 price: product.price,
                 image_url: product.image_urls?.[0] || null,
@@ -208,17 +212,20 @@ export function AppProviders({ children }) {
         return;
       }
 
-      // Guest path — sessionStorage only, no network call.
+      // 2. GUEST USER PATH (sessionStorage only, no network call)
+      // Normalize identifier since catalog uses product.id and cart arrays use product.product_id
+      //const targetProductId = product.product_id || product.id;
+      
       const map = { ...guestCartRef.current };
-      const current = map[product.id]?.quantity || 0;
+      const current = map[targetProductId]?.quantity || 0;
       const nextQuantity =
         action === 'add' ? current + (quantity ?? 1) : action === 'delete' ? 0 : quantity ?? 0;
 
       if (nextQuantity <= 0) {
-        delete map[product.id];
+        delete map[targetProductId];
         pushToast('Item removed from cart');
       } else {
-        map[product.id] = {
+        map[targetProductId] = {
           quantity: nextQuantity,
           title: product.title,
           price: product.price,
@@ -226,11 +233,13 @@ export function AppProviders({ children }) {
         };
         pushToast('Cart updated');
       }
+      
       guestCartRef.current = map;
       writeGuestCart(map);
+      
       setCartItems(
-        Object.entries(map).map(([product_id, item]) => ({
-          product_id,
+        Object.entries(map).map(([p_id, item]) => ({
+          product_id: p_id,
           title: item.title,
           price: item.price,
           image_url: item.image_url,
@@ -240,6 +249,7 @@ export function AppProviders({ children }) {
     },
     [session, pushToast]
   );
+
 
   const totalCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
 

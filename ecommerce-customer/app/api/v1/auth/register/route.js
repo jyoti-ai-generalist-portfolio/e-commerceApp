@@ -98,12 +98,13 @@ export async function POST(request) {
     }
 
     try {
+      console.log("In register function - before sendig welcome email");
       await sendWelcomeEmail({ to: email, name: full_name });
     } catch (emailError) {
       // Per spec: email delivery failure must not block registration.
       console.error('Welcome email failed to send:', emailError);
     }
-
+    console.log("In register function - after sending welcome email");
     return NextResponse.json(
       {
         message: 'Registration successful. Welcome email sent.',
