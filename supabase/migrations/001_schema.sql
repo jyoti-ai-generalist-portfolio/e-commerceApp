@@ -283,3 +283,8 @@ create policy "Users can create own returns"
 --   using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'))
 -- This wasn't specified in the original brief, so it's left as a follow-up
 -- decision rather than assumed.
+
+-- Added code to make the combination of cart id and product id unique in the cart_items table to prevent duplicate entries for the same product in a user's cart.
+alter table public.cart_items
+  add constraint unique_cart_product
+  unique (cart_id, product_id);

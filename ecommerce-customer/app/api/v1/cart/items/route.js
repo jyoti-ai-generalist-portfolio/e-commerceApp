@@ -66,7 +66,7 @@ export async function POST(request) {
         total_count,
       });
     }
-
+    /* Changed this code below to make the combination of cart id and product id unique in the cart_items table to prevent duplicate entries for the same product in a user's cart. 
     const { data: existingItem, error: existingError } = await supabase
       .from('cart_items')
       .select('id, quantity')
@@ -90,6 +90,34 @@ export async function POST(request) {
         .insert({ cart_id: cart.id, product_id, quantity: finalQuantity });
       if (insertError) throw insertError;
     }
+ */
+let finalQuantity = numericQuantity;
+
+// If action is 'add', we still need to know the baseline quantity to increment it.
+if (action === 'add') {
+  const { data: existingItem } = await supabase
+    .from('cart_items')
+    .select('quantity')
+    .eq('cart_id', cart.id)
+    .eq('product_id', product_id)
+    .maybeSingle();
+    
+  finalQuantity = (existingItem?.quantity || 0) + numericQuantity;
+}
+
+// Perform a secure, unique upsert based on the unique constraint conflict
+const { error: upsertError } = await supabase
+  .from('cart_items')
+  .upsert(
+    { 
+      cart_id: cart.id, 
+      product_id: product_id, 
+      quantity: finalQuantity 
+    }, 
+    { onConflict: 'cart_id,product_id' }
+  );
+
+  if (upsertError) throw upsertError;
 
     const { data: allItems, error: allError } = await supabase
       .from('cart_items')
