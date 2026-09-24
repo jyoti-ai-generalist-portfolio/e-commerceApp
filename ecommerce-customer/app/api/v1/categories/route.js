@@ -5,6 +5,9 @@
 import { NextResponse } from 'next/server';
 import { getAnonSupabase } from '../../../../lib/supabaseServer';
 
+// Force dynamic execution so Next.js does not cache API responses
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const supabase = getAnonSupabase();
