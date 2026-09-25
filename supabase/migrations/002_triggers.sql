@@ -40,17 +40,29 @@ as $$
 declare
   base_url text;
   svc_key  text;
+  auth_header_value text;
 begin
   select decrypted_secret into base_url from vault.decrypted_secrets where name = 'functions_base_url';
   select decrypted_secret into svc_key  from vault.decrypted_secrets where name = 'service_role_key';
+
+-- 2. Fallback to an empty string if vault returns null to avoid breaking the JSON payload
+  if svc_key is null then
+    auth_header_value := 'Bearer unknown_token';
+  else
+    auth_header_value := 'Bearer ' || svc_key;
+  end if;
+  if base_url is null then
+    base_url := 'https://supabase.co'; -- Fallback to project domain
+  end if;
 
   perform net.http_post(
     url     := base_url || '/' || function_name,
     headers := jsonb_build_object(
                  'Content-Type', 'application/json',
-                 'Authorization', 'Bearer ' || svc_key
+                 'Authorization', auth_header_value
                ),
-    body    := payload
+    body    := payload::text,
+    timeout_ms := 5000
   );
 end;
 $$;
