@@ -149,7 +149,8 @@ export async function POST(request) {
     });
 
     // 5. Store the Razorpay order id so /payments/verify can cross-check it.
-    const { error: linkError } = await supabase
+    // changed to use the serviceSupabase client to update the order, as the user may not have permission to update orders due to RLS policies.
+    const { error: linkError } = await serviceSupabase
       .from('orders')
       .update({ razorpay_order_id: rzpOrder.id })
       .eq('id', order.id);

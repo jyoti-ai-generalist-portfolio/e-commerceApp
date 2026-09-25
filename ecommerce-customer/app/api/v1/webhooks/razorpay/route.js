@@ -1,5 +1,3 @@
-//api/v1/webhooks/razorpay/route.js
-
 import { NextResponse } from 'next/server';
 import { getServiceSupabase } from '../../../../../lib/supabaseServer';
 import { verifyRazorpayWebhookSignature } from '../../../../../lib/razorpayServer';
@@ -43,13 +41,44 @@ export async function POST(request) {
   const supabase = getServiceSupabase();
 
   try {
-    if (event.event === 'payment.captured') {
-      const payment = event.payload?.payment?.entity;
-      const razorpayOrderId = payment?.order_id;
+    //if (event.event === 'payment.captured') {
+    // Standardize event detection to handle both triggers smoothly
+    if (event.event === 'payment.captured' || event.event === 'order.paid') {
+      // Extract the Razorpay Order ID depending on the event structure
+      let razorpayOrderId = null;
+      let paymentEntity = null;
+
+      if (event.event === 'order.paid') {
+        // order.paid contains the order entity directly in the payload
+        razorpayOrderId = event.payload?.order?.entity?.id;
+        // Grab the payment details if embedded or fallback
+        paymentEntity = event.payload?.payment?.entity; 
+      } else if (event.event === 'payment.captured') {
+        // payment.captured passes the payment entity natively
+        paymentEntity = event.payload?.payment?.entity;
+        razorpayOrderId = paymentEntity?.order_id;
+      }
+
+      //const payment = event.payload?.payment?.entity;
+      //const razorpayOrderId = payment?.order_id;
       if (!razorpayOrderId) {
         return NextResponse.json({ error: 'Missing order_id in payload' }, { status: 400 });
       }
 
+       // Query your database for the matching Razorpay Order ID
+      const { data: order, error: findError } = await supabase
+        .from('orders')
+        .select('id, status')
+        .eq('razorpay_order_id', razorpayOrderId)
+        .maybeSingle();
+      if (findError) throw findError;
+
+      if (!order) {
+        // This stops retries if the order is genuinely missing, but logs it clearly
+        console.error(`Webhook ${event.event}: No matching row found in Supabase for Razorpay ID ${razorpayOrderId}`);
+        return NextResponse.json({ received: true });
+      }
+      /*
       const { data: order, error: findError } = await supabase
         .from('orders')
         .select('id, status')
@@ -62,7 +91,7 @@ export async function POST(request) {
         // doesn't keep retrying indefinitely for an order we can't match.
         console.error('Webhook payment.captured: no matching order for', razorpayOrderId);
         return NextResponse.json({ received: true });
-      }
+      } */
 
       // Idempotent: the browser callback (/api/v1/payments/verify) may
       // have already marked this paid. Only act if it's still pending.
@@ -92,22 +121,6 @@ export async function POST(request) {
           }
         }
       } else if (order.status === 'payment_failed') {
-        // This is the exact gap this route exists to close: the
-        // abandoned-order cron already marked it failed and released
-        // stock, but Razorpay is now telling us the payment actually
-        // went through. Money moved — the order must be honored.
-        // Re-reserve stock (may fail if oversold in the meantime) and
-        // mark paid; this case needs human review either way, so it's
-        // logged loudly rather than silently reconciled.
-        console.error(
-          `RECONCILIATION NEEDED: order ${order.id} was marked payment_failed but ` +
-            `Razorpay confirms payment ${payment.id} was captured. Manual review required.`
-        );
-        // Deliberately not auto-flipping status here — flip only after
-        // confirming stock can actually be honored, which is a judgment
-        // call, not something to automate silently on a webhook.
-      }
-    }       } else if (order.status === 'payment_failed') {
         // The abandoned-order cron already marked this failed and
         // released its reserved stock (trg_order_payment_failed_release_stock),
         // but Razorpay now confirms the payment actually captured. Money
@@ -176,9 +189,10 @@ export async function POST(request) {
           }
         }
       }
+    }
+
     // Other event types (refund, dispute, etc.) are acknowledged but
     // not yet handled — add cases here as needed.
-
     return NextResponse.json({ received: true });
   } catch (err) {
     console.error('Razorpay webhook processing failed:', err);

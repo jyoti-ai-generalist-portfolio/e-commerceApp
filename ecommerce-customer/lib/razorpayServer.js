@@ -5,13 +5,21 @@ import crypto from 'crypto';
 const keyId = process.env.RAZORPAY_KEY_ID;
 const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-const razorpay = keyId && keySecret ? new Razorpay({ key_id: keyId, key_secret: keySecret }) : null;
+//const razorpay = keyId && keySecret ? new Razorpay({ key_id: keyId, key_secret: keySecret }) : null;
 
 export function getRazorpayClient() {
-  if (!razorpay) {
-    throw new Error('RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are not configured');
+   // Ensure variables exist to avoid quiet initialization failures
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    throw new Error("Razorpay API keys are missing from environment variables.");
   }
-  return razorpay;
+ // if (!razorpay) {
+   // throw new Error('RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are not configured');
+ // }
+  return new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+  // return razorpay;
 }
 // Verifies a Razorpay WEBHOOK signature. This uses a DIFFERENT secret
 // (RAZORPAY_WEBHOOK_SECRET, set in the Razorpay dashboard webhook

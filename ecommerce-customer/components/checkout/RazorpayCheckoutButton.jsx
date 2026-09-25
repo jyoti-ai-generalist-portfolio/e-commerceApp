@@ -41,6 +41,7 @@ export default function RazorpayCheckoutButton({ disabled, shippingAddress, amou
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData?.error || 'Could not start checkout');
 
+      console.log('Razorpay order created: Key id found was :', process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
       // 2. Open the Razorpay modal.
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
@@ -69,6 +70,9 @@ export default function RazorpayCheckoutButton({ disabled, shippingAddress, amou
                 razorpay_signature: response.razorpay_signature,
               }),
             });
+            console.log(response.razorpay_payment_id);
+            console.log(response.razorpay_order_id);
+            console.log(response.razorpay_signature);
             const verifyData = await verifyRes.json();
             if (!verifyRes.ok) throw new Error(verifyData?.error || 'Payment verification failed');
 
