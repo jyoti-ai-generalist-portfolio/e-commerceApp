@@ -4,7 +4,10 @@ import { AppProviders } from '../lib/store/AppProviders';
 import Header from '../components/Header';
 import CartDrawer from '../components/CartDrawer';
 import AuthModal from '../components/auth/AuthModal';
-import ToastHost from '../components/ToastHost';
+
+// To this:
+
+import { ToastProvider } from '../components/ToastHost';
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -30,10 +33,12 @@ export default function RootLayout({ children }) {
       <body className="font-body">
         <AppProviders>
           <Header />
-          {children}
-          <CartDrawer />
-          <AuthModal />
-          <ToastHost />
+          <ToastProvider>
+            {children}
+            <CartDrawer />
+            <AuthModal />
+           
+          </ToastProvider>
         </AppProviders>
       </body>
     </html>

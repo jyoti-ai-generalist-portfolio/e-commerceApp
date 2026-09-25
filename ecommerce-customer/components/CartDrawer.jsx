@@ -1,6 +1,7 @@
 'use client';
 
 import { useApp } from '../lib/store/AppProviders';
+import { useRouter } from 'next/navigation';
 
 function formatPrice(price) {
   const value = Number(price);
@@ -8,13 +9,21 @@ function formatPrice(price) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
 }
 
+
 export default function CartDrawer() {
+  const router = useRouter(); // 2. Initialize the router here
   const { isCartOpen, closeCart, cartItems, cartLoading, setItemQuantity, removeItem, isLoggedIn } =
     useApp();
 
   if (!isCartOpen) return null;
 
   const total = cartItems.reduce((sum, i) => sum + i.quantity * Number(i.price || 0), 0);
+
+  // New function handleCheckout added
+  function handleCheckout() {
+    closeCart();
+    router.push('/checkout');
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -102,7 +111,7 @@ export default function CartDrawer() {
             </ul>
           )}
         </div>
-
+          
         <div className="border-t border-line px-5 py-4">
           <div className="mb-3 flex items-center justify-between text-sm font-medium text-ink">
             <span>Total</span>
@@ -111,6 +120,7 @@ export default function CartDrawer() {
           <button
             type="button"
             disabled={cartItems.length === 0}
+            onClick={handleCheckout}
             className="min-h-[44px] w-full rounded-card bg-ink text-sm font-medium text-paper transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
           >
             Proceed to checkout
