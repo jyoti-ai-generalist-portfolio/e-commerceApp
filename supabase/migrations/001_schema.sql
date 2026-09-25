@@ -126,8 +126,9 @@ create table public.orders (
   id                 uuid primary key default gen_random_uuid(),
   customer_id        uuid not null references public.profiles(id),
   total_amount       numeric(10,2) not null check (total_amount >= 0),
-  status             text not null default 'Pending'
-                       check (status in ('Pending','Processing','Shipped','Delivered','Cancelled')),
+  status             text not null default 'pending_payment'
+                       check (status in ('pending_payment','paid','payment_failed'),
+  order_shipping_status text not null default 'Pending','Shipped','Delivered','Cancelled')),
   shipping_address   jsonb not null,
   tracking_number    text,
   created_at         timestamptz not null default now(),
