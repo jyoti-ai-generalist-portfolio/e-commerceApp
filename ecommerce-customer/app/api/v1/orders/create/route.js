@@ -65,12 +65,28 @@ export async function POST(request) {
     const totalAmount = subtotal + tax + shippingFee;
 
     // 1. Create the draft order in 'Pending' status.
+    /* below is the table definition
+    id                 uuid primary key default gen_random_uuid(),
+  customer_id        uuid not null references public.profiles(id),
+  total_amount       numeric(10,2) not null check (total_amount >= 0),
+  status             text not null default 'pending_payment'
+                       check (status in ('pending_payment','paid','payment_failed','payment_refunded')),
+  order_shipping_status text not null default 'Processing'
+                        check (order_shipping_status in ('Processing','Shipped','Out for Delivery','Delivered','Cancelled')),
+  shipping_address   jsonb not null,
+  tracking_number    text,
+  review_email_sent boolean not null default false,
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now()
+
+  */
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
         customer_id: user.id,
         total_amount: totalAmount,
         status: 'pending_payment',
+        order_shipping_status: 'Processing',
         shipping_address,
       })
       .select('id, total_amount')
@@ -78,13 +94,27 @@ export async function POST(request) {
     if (orderError) throw orderError;
 
     // 2. Snapshot the order_items at today's price.
+/*
+    id                  uuid primary key default gen_random_uuid(),
+  order_id            uuid not null references public.orders(id) on delete cascade,
+  product_id          uuid references public.products(id) on delete set null,
+  quantity            integer not null check (quantity > 0),
+  price_at_purchase   numeric(10,2) not null
+*/
+    //console.log("Going to insert the order_items in the table for the order_id: ", order.id);
+    
     const orderItemsPayload = cartItems.map((i) => ({
       order_id: order.id,
       product_id: i.product_id,
       quantity: i.quantity,
       price_at_purchase: i.products.price,
     }));
-    const { error: orderItemsError } = await supabase.from('order_items').insert(orderItemsPayload);
+    //console.log("Order Items Payload: ", orderItemsPayload);  
+    //const { error: orderItemsError } = await supabase.from('order_items').insert(orderItemsPayload);
+    // Changed to use the serviceSupabase client to insert order_items, as the user may not have permission to insert into order_items due to RLS policies.
+    const { error: orderItemsError } = await serviceSupabase.from('order_items').insert(orderItemsPayload);
+
+
     if (orderItemsError) throw orderItemsError;
 
     // 3. Reserve stock now — before Razorpay is even contacted. Each
