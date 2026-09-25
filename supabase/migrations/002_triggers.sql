@@ -30,6 +30,7 @@
 select vault.create_secret('https://vdbatqeclynfjecjtyxr.functions.supabase.co', 'functions_base_url');
 select vault.create_secret('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkYmF0cWVjbHluZmplY2p0eXhyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTM1NjYzMywiZXhwIjoyMTA0OTMyNjMzfQ.8-yqOplzQzQMZCOgfskkTI2gI_z4G6diu3xX2l0FuUs', 'service_role_key');
 
+
 -- Helper to call an Edge Function by name with a JSON body
 create or replace function public.call_edge_function(function_name text, payload jsonb)
 returns void
