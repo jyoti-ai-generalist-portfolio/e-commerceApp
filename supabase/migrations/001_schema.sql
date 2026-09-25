@@ -127,8 +127,9 @@ create table public.orders (
   customer_id        uuid not null references public.profiles(id),
   total_amount       numeric(10,2) not null check (total_amount >= 0),
   status             text not null default 'pending_payment'
-                       check (status in ('pending_payment','paid','payment_failed'),
-  order_shipping_status text not null default 'Pending','Shipped','Delivered','Cancelled')),
+                       check (status in ('pending_payment','paid','payment_failed')),
+  order_shipping_status text not null default 'Processing'
+                        check (order_shipping_status in ('Processing','Shipped','Delivered','Cancelled')),
   shipping_address   jsonb not null,
   tracking_number    text,
   created_at         timestamptz not null default now(),
@@ -289,3 +290,22 @@ create policy "Users can create own returns"
 alter table public.cart_items
   add constraint unique_cart_product
   unique (cart_id, product_id);
+
+  -- 1. Modify the existing 'status' column
+-- Step A: (Optional but recommended) Drop the old constraint if you know its name. 
+-- If you don't know the exact name, Postgres usually names it 'orders_status_check'. 
+ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_status_check;
+
+-- Step B: Change the default value for 'status'
+ALTER TABLE public.orders ALTER COLUMN status SET DEFAULT 'pending_payment';
+
+-- Step C: Add the new check constraint for 'status'
+ALTER TABLE public.orders ADD CONSTRAINT orders_status_check 
+  CHECK (status IN ('pending_payment', 'paid', 'payment_failed'));
+
+
+-- 2. Add the new 'order_shipping_status' column
+ALTER TABLE public.orders 
+  ADD COLUMN order_shipping_status TEXT NOT NULL DEFAULT 'Processing'
+  CONSTRAINT orders_shipping_status_check 
+  CHECK (order_shipping_status IN ('Processing', 'Shipped', 'Delivered', 'Cancelled'));
