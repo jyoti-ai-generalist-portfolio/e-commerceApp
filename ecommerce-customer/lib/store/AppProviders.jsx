@@ -12,6 +12,7 @@ const AppContext = createContext(null);
 let toastId = 0;
 
 // Added new function as is
+// Fix Syntax Error in mapAuthedRow
 function mapAuthedRow(row) {
   const product = row.product || {};
   return {
@@ -21,7 +22,7 @@ function mapAuthedRow(row) {
     price: Number(product.price || 0),
     quantity: row.quantity,
     image_url: Array.isArray(product.image_urls) ? product.image_urls[0] : null,
-    stock_quantity: product.stock_quantity,
+    stock_quantity: product.stock_quantity ?? product.stock, // ✅ Fixed fallback
   };
 }
 // Added new function as is
@@ -91,6 +92,7 @@ export function AppProviders({ children }) {
           price: i.price,
           image_url: i.image_url,
           quantity: i.quantity,
+          stock_quantity: i.stock_quantity ?? i.stock, // ✅ Preserve stock_quantity
         }))
       );
     } catch (err) {
@@ -131,6 +133,7 @@ export function AppProviders({ children }) {
     setCartLoading(true);
     try {
       if (isLoggedIn) {
+       
         const { data, error } = await supabase
           .from('cart_items')
           .select('id, quantity, product:products(id, title, price, image_urls, stock_quantity)')
@@ -151,6 +154,7 @@ export function AppProviders({ children }) {
           price: item.price,
           image_url: item.image_url,
           quantity: item.quantity,
+          stock_quantity: item.stock_quantity, // ✅ Include stock_quantity
         })))
       }
     } catch (err) {
@@ -436,12 +440,44 @@ Uncomment if needed*/
   // either the customer clicks on Remove to remove product from the cart or
   // original qty was 1 and the customer clicks on - button to reduce the quantity to 0, then removeItem is called.
 
+  /* Prev version --
   const mutateCart = useCallback(
     async (product, { quantity, action }) => {
       // 1. AUTHENTICATED USER PATH (Database Call)
       const targetProductId = product.id || product.product_id;
+      // 1. DETERMINE AVAILABLE STOCK
+    // Check passed product first, fallback to existing item in state
+      const existingInState = cartItems.find((i) => i.product_id === targetProductId);
+      // Replace line 333 in AppProviders_6.jsx
+      const availableStock = 
+          product.stock_quantity ?? 
+          product.stock ?? 
+          existingInState?.stock_quantity ?? 
+          existingInState?.stock;
+
+      //const availableStock = product.stock_quantity ?? product.stock ?? existingInState?.stock_quantity;
+      console.log ("MutateCart called for product", product.title, "Action:", action, "Requested quantity:", quantity, "Available stock:", availableStock);
+      
+
       //if (session?.access_token) { // - original code commented 
       if (isLoggedIn) {
+        // Calculate target total quantity client-side to enforce limit before API call
+        const currentQty = existingInState?.quantity || 0;
+        let requestedTargetQty = action === 'add' 
+          ? currentQty + (quantity ?? 1) 
+          : action === 'delete' 
+            ? 0 
+          : quantity ?? 0;
+
+        // Cap at stock limit if defined
+        if (availableStock !== undefined && availableStock !== null && requestedTargetQty > availableStock) {
+          if (action === 'add' && currentQty >= availableStock) {
+            pushToast(`Maximum available stock (${availableStock}) reached`, 'error');
+            return;
+          }
+          requestedTargetQty = availableStock;
+        }
+
         try {
           const res = await fetch('/api/v1/cart/items', {
             method: 'POST',
@@ -449,32 +485,44 @@ Uncomment if needed*/
               'Content-Type': 'application/json',
               Authorization: `Bearer ${session.access_token}`,
             },
-            body: JSON.stringify({ product_id: targetProductId, quantity, action }), //targetProductId
+            body: JSON.stringify({ 
+              product_id: targetProductId, 
+              quantity: requestedTargetQty, 
+              action 
+            }),
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data?.error || 'Cart update failed');
 
-          setCartItems((prev) => {
-            const existingIndex = prev.findIndex((i) => i.product_id === targetProductId);
-            if (data.new_quantity <= 0) {
-              return prev.filter((i) => i.product_id !== targetProductId); // Changed targetProductId
-            }
-            if (existingIndex >= 0) {
-              const next = [...prev];
-              next[existingIndex] = { ...next[existingIndex], quantity: data.new_quantity };
-              return next;
-            }
-            return [
-              ...prev,
-              {
-                product_id: targetProductId, // Changed targetProductId
-                title: product.title,
-                price: product.price,
-                image_url: product.image_urls?.[0] || null,
-                quantity: data.new_quantity,
-              },
-            ];
-          });
+          // AFTER (Updated Code)
+        setCartItems((prev) => {
+          const existingIndex = prev.findIndex((i) => i.product_id === targetProductId);
+          if (data.new_quantity <= 0) {
+           return prev.filter((i) => i.product_id !== targetProductId);
+          }
+          if (existingIndex >= 0) {
+           const next = [...prev];
+            next[existingIndex] = { 
+              ...next[existingIndex], 
+              cart_item_id: data.cart_item_id || data.id || next[existingIndex].cart_item_id || targetProductId, // ✅ Ensure cart_item_id exists
+             quantity: data.new_quantity,
+              stock_quantity: availableStock ?? next[existingIndex].stock_quantity,
+            };
+            return next;
+          }
+          return [
+            ...prev,
+            {
+             cart_item_id: data.cart_item_id || data.id || targetProductId, // ✅ Added cart_item_id for new items
+             product_id: targetProductId,
+              title: product.title,
+              price: product.price,
+              image_url: product.image_urls?.[0] || product.image_url || null, // ✅ Fixed image URL fallback
+              quantity: data.new_quantity,
+              stock_quantity: availableStock,
+            },
+          ];
+            });
           pushToast(data.new_quantity <= 0 ? 'Item removed from cart' : 'Cart updated');
         } catch (err) {
           console.error(err);
@@ -489,8 +537,17 @@ Uncomment if needed*/
       
       const map = { ...guestCartRef.current };
       const current = map[targetProductId]?.quantity || 0;
-      const nextQuantity =
+      let nextQuantity =
         action === 'add' ? current + (quantity ?? 1) : action === 'delete' ? 0 : quantity ?? 0;
+
+      // Cap requested quantity at maximum stock
+      if (availableStock !== undefined && availableStock !== null && nextQuantity > availableStock) {
+        if (action === 'add' && current >= availableStock) {
+          pushToast(`Maximum available stock (${availableStock}) reached`, 'error');
+          return;
+        }
+       nextQuantity = availableStock;
+      }
 
       if (nextQuantity <= 0) {
         delete map[targetProductId];
@@ -501,6 +558,7 @@ Uncomment if needed*/
           title: product.title,
           price: product.price,
           image_url: product.image_urls?.[0] || product.image_url || null,
+          stock_quantity: availableStock ?? map[targetProductId]?.stock_quantity, // ✅ Preserve stock
         };
         pushToast('Cart updated');
       }
@@ -515,12 +573,171 @@ Uncomment if needed*/
           price: item.price,
           image_url: item.image_url,
           quantity: item.quantity,
+          stock_quantity: item.stock_quantity, // ✅ Include stock
         }))
       );
     },
-    [session,isLoggedIn, pushToast] // added isLoggedIn to the dependency array to ensure that the function updates when the login state changes
+    [session,isLoggedIn, cartItems, pushToast] // added isLoggedIn to the dependency array to ensure that the function updates when the login state changes
     
   );
+// end of mutateCart function
+--*/
+const mutateCart = useCallback(
+  async (product, { quantity, action }) => {
+    const targetProductId = product.id || product.product_id;
+    
+    // Check passed product first, then existing state
+    const existingInState = cartItems.find((i) => i.product_id === targetProductId);
+    const availableStock =
+      product.stock_quantity ??
+      product.stock ??
+      existingInState?.stock_quantity ??
+      null;
+
+    /*console.log(
+      "MutateCart called for product",
+      product.title,
+      "Action:", action,
+      "Requested quantity:", quantity,
+      "Available stock:", availableStock
+    );*/
+
+    if (isLoggedIn) {
+      const currentQty = existingInState?.quantity || 0;
+      let requestedTargetQty =
+        action === 'add'
+          ? currentQty + (quantity ?? 1)
+          : action === 'delete'
+          ? 0
+          : quantity ?? 0;
+      //console.log ("in mutatecart - requestedTargetQty:", requestedTargetQty, "currentQty:", currentQty);
+      //console.log ("in mutatecart - availableStock:", availableStock);
+      // Cap at stock limit if defined
+      if (action === 'add' || action === 'update') {
+        if ( availableStock !== null && (requestedTargetQty > availableStock)) {
+        
+          //console.log ("Found the condition - going to Push Toast for Maximum available stock reached");
+          pushToast(`Maximum available stock (${availableStock}) reached`, 'error');
+          requestedTargetQty = availableStock - currentQty;
+          
+          return;
+        }
+      }
+      if (action == 'update'){
+        requestedTargetQty = Math.min(requestedTargetQty, availableStock);
+        requestedTargetQty = requestedTargetQty + currentQty;
+      }
+        //console.log ("Now my requestedTargetQty is greater than availableStock - going to set it to availableStock");
+      
+       // requestedTargetQty = availableStock - currentQty;
+        //console.log ("Updated requestedTargetQty to ", requestedTargetQty);
+        //console.log ("Going to add to cart with ", requestedTargetQty, " where currentQty is ", currentQty, " and availableStock is ", availableStock); 
+      
+
+      try {
+          const res = await fetch('/api/v1/cart/items', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            product_id: targetProductId,
+            quantity: requestedTargetQty - currentQty, // send the delta quantity to the server
+            action,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || 'Cart update failed');
+
+        //console.log ("in mutatecart - data returned from server:", data);
+       // console.log ("data.new_quantity:", data.new_quantity);
+
+        //console.log ("vailable stock", availableStock);
+        setCartItems((prev) => {
+          const existingIndex = prev.findIndex((i) => i.product_id === targetProductId);
+          if (data.new_quantity <= 0) {
+            return prev.filter((i) => i.product_id !== targetProductId);
+          }
+          if (existingIndex >= 0) {
+            const next = [...prev];
+            next[existingIndex] = {
+              ...next[existingIndex],
+              cart_item_id:
+                data.cart_item_id ||
+                data.id ||
+                next[existingIndex].cart_item_id ||
+                targetProductId,
+              quantity: data.new_quantity,
+              stock_quantity: availableStock ?? next[existingIndex].stock_quantity ?? null,
+            };
+            return next;
+          }
+          return [
+            ...prev,
+            {
+              cart_item_id: data.cart_item_id || data.id || targetProductId,
+              product_id: targetProductId,
+              title: product.title,
+              price: product.price,
+              image_url: product.image_urls?.[0] || product.image_url || null,
+              quantity: data.new_quantity,
+              stock_quantity: availableStock,
+            },
+          ];
+        });
+        pushToast(data.new_quantity <= 0 ? 'Item removed from cart' : 'Cart updated');
+      } catch (err) {
+        console.error(err);
+        pushToast('Failed to update cart item quantity', 'error');
+      }
+      return;
+    }
+
+    // Guest user path
+    const map = { ...guestCartRef.current };
+    const current = map[targetProductId]?.quantity || 0;
+    let nextQuantity =
+      action === 'add' ? current + (quantity ?? 1) : action === 'delete' ? 0 : quantity ?? 0;
+
+    if (availableStock !== null && nextQuantity > availableStock) {
+      if (action === 'add' && current >= availableStock) {
+        pushToast(`Maximum available stock (${availableStock}) reached`, 'error');
+        return;
+      }
+      nextQuantity = availableStock;
+    }
+
+    if (nextQuantity <= 0) {
+      delete map[targetProductId];
+      pushToast('Item removed from cart');
+    } else {
+      map[targetProductId] = {
+        quantity: nextQuantity,
+        title: product.title,
+        price: product.price,
+        image_url: product.image_urls?.[0] || product.image_url || null,
+        stock_quantity: availableStock ?? map[targetProductId]?.stock_quantity ?? null,
+      };
+      pushToast('Cart updated');
+    }
+
+    guestCartRef.current = map;
+    writeGuestCart(map);
+
+    setCartItems(
+      Object.entries(map).map(([p_id, item]) => ({
+        product_id: p_id,
+        title: item.title,
+        price: item.price,
+        image_url: item.image_url,
+        quantity: item.quantity,
+        stock_quantity: item.stock_quantity,
+      }))
+    );
+  },
+  [session, isLoggedIn, cartItems, pushToast]
+);
 // end of mutateCart function
 
 // Calculate total count of items in the cart

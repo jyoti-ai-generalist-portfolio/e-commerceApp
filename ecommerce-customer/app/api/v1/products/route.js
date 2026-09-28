@@ -14,9 +14,10 @@ export async function GET(request) {
 
     const supabase = getAnonSupabase();
 
+    // ✅ Added stock_quantity to the select query
     let query = supabase
       .from('products')
-      .select('id, title, price, image_urls, category_id', { count: 'exact' })
+      .select('id, title, price, image_urls, category_id, stock_quantity', { count: 'exact' })
       .eq('is_published', true);
 
     if (categoryId && categoryId !== 'all') {

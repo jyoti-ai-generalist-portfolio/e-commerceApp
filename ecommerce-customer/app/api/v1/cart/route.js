@@ -27,10 +27,14 @@ export async function GET(request) {
       return NextResponse.json({ cart_id: null, total_count: 0, items: [] });
     }
 
+    
+
+    // ✅ 1. Added stock_quantity to select list
     const { data: items, error: itemsError } = await supabase
       .from('cart_items')
-      .select('id, product_id, quantity, products(title, price, image_urls)')
+      .select('id, product_id, quantity, products(title, price, image_urls, stock_quantity)')
       .eq('cart_id', cart.id);
+
     if (itemsError) throw itemsError;
 
     const formatted = (items || []).map((row) => ({
@@ -40,6 +44,7 @@ export async function GET(request) {
       price: row.products?.price ?? null,
       quantity: row.quantity,
       image_url: row.products?.image_urls?.[0] ?? null,
+      stock_quantity: row.products?.stock_quantity ?? null,
     }));
 
     const total_count = formatted.reduce((sum, i) => sum + i.quantity, 0);

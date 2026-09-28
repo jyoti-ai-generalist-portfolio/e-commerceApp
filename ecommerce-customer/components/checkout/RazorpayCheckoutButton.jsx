@@ -39,7 +39,14 @@ export default function RazorpayCheckoutButton({ disabled, shippingAddress, amou
         body: JSON.stringify({ shipping_address: shippingAddress }),
       });
       const createData = await createRes.json();
-      if (!createRes.ok) throw new Error(createData?.error || 'Could not start checkout');
+      //if (!createRes.ok) throw new Error(createData?.error || 'Could not start checkout');
+
+      // Fix: Explicitly handle non-OK responses from the server and display the message
+      if (!createRes.ok) {
+        pushToast(createData?.error || 'Could not start checkout', 'error');
+        setProcessing(false);
+        return; // Stop execution here so it doesn't open Razorpay
+      }
 
       console.log('Razorpay order created: Key id found was :', process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
       // 2. Open the Razorpay modal.

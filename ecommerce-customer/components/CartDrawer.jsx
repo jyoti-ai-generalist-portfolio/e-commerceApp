@@ -92,7 +92,20 @@ export default function CartDrawer() {
                       <button
                         type="button"
                         aria-label="Increase quantity"
-                        onClick={() => setItemQuantity(item, item.quantity + 1)}
+                        disabled={
+                            item.stock_quantity !== undefined && 
+                            item.stock_quantity !== null && 
+                            item.quantity >= item.stock_quantity
+                          }
+
+
+                        onClick={() => {
+                            const stock = item.stock_quantity;
+                            if (stock === undefined || stock === null || item.quantity < stock) {
+                                setItemQuantity(item, item.quantity + 1);
+                            }
+                            
+                          }}
                         className="flex h-9 w-9 items-center justify-center rounded-card border border-line text-ink hover:border-accent"
                       >
                         +

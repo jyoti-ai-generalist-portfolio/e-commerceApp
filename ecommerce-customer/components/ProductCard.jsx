@@ -9,9 +9,19 @@ function formatPrice(price) {
 }
 
 export default function ProductCard({ product }) {
-  const { addToCart } = useApp();
+  const { addToCart, cartItems } = useApp();
   const image = product.image_urls?.[0];
 
+  const targetProductId = product.id || product.product_id; // ✅ Normalize ID
+
+  // Find existing item quantity in cart
+  const cartItem = cartItems?.find((item) => item.product_id === targetProductId);
+  const currentInCart = cartItem ? cartItem.quantity : 0;
+  // Determine if out of stock or max reached
+  
+  const stockLimit = product.stock_quantity ?? product.stock; // ✅ Standardize stock check
+  const isMaxReached = stockLimit !== undefined && currentInCart >= stockLimit;
+  console.log ("Max reached for product", product.title, "Current in cart:", currentInCart, "Stock limit:", stockLimit, "Is max reached:", isMaxReached);
   return (
     <div className="flex flex-col overflow-hidden rounded-card border border-line bg-white">
       <div className="aspect-square w-full bg-accent-soft">
@@ -29,10 +39,15 @@ export default function ProductCard({ product }) {
         <p className="font-display text-lg text-ink">{formatPrice(product.price)}</p>
         <button
           type="button"
-          onClick={() => addToCart(product, 1)}
-          className="mt-auto min-h-[44px] rounded-card bg-ink text-sm font-medium text-paper transition-colors hover:bg-accent"
+          disabled={isMaxReached}
+          onClick={() => {
+            if (!isMaxReached) {
+              addToCart(product, 1);
+            }
+          }}
+          className="mt-auto min-h-[44px] rounded-card bg-ink text-sm font-medium text-paper transition-colors hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Add to cart
+          {isMaxReached ? 'Max stock reached' : 'Add to cart'}
         </button>
       </div>
     </div>
