@@ -11,23 +11,6 @@ Links Supabase auth users to application-level profile data.
 | `full_name` | `text` |  Nullable |
 | `created_at` | `timestamptz` |  |
 
-
-## Table `customer_addresses`
-
-### Columns
-| Name | Type | Constraints |
-|------|------|-------------|
-| `id` | `uuid` | Primary |
-| `profile_id` | 'uuid'|  Foreign Key to public.profiles.id |
-| `address_line1` | `text`|  
-| `address_line2` | `text`|  
-| `city` | `text`|  
-| `pincode` | `text`| 
-| `mobilenumber` | `text`|   
-| `created_at` | `timestamptz` |  |
-constraint customer_addresses_profile_id_fkey foreign KEY (profile_id) references profiles (id) on update CASCADE on delete CASCADE
-
-
 ## Table `categories`
 
 ### Columns
@@ -37,7 +20,8 @@ constraint customer_addresses_profile_id_fkey foreign KEY (profile_id) reference
 | `id` | `uuid` | Primary |
 | `name` | `text` |  Unique |
 | `slug` | `text` |  Unique |
-| `is_active` | `bool` | Not null, default `true` — added 2026-09-16 for Use Case 19 (Catalog Management) to support admin soft-delete of categories; the schema previously had no soft-delete flag here, unlike `products.is_published` |
+| `is_active` | `bool` |  |
+| `created_at` | `timestamptz` |  |
 
 ## Table `products`
 
@@ -51,7 +35,7 @@ constraint customer_addresses_profile_id_fkey foreign KEY (profile_id) reference
 | `description` | `text` |  Nullable |
 | `price` | `numeric` |  |
 | `stock_quantity` | `int4` |  |
-| `image_urls` | `_text` |  Nullable — canonical image field. (Use Case 19's own spec text referred to a singular, required `image_url`, but its own example payload sent an array; this array column is the one that actually exists and is what the catalog admin UI uses — up to 5 URLs.) |
+| `image_urls` | `_text` |  Nullable |
 | `is_published` | `bool` |  |
 | `created_at` | `timestamptz` |  |
 | `updated_at` | `timestamptz` |  |
@@ -95,6 +79,9 @@ constraint customer_addresses_profile_id_fkey foreign KEY (profile_id) reference
 | `created_at` | `timestamptz` |  |
 | `updated_at` | `timestamptz` |  |
 | `review_email_sent` | `bool` |  |
+| `razorpay_order_id` | `text` |  Nullable |
+| `order_shipping_status` | `text` |  |
+| `delivery_date` | `timestamptz` |  Nullable |
 
 ## Table `order_items`
 
@@ -129,7 +116,7 @@ constraint customer_addresses_profile_id_fkey foreign KEY (profile_id) reference
 |------|------|-------------|
 | `id` | `uuid` | Primary |
 | `product_id` | `uuid` |  |
-| `change_qty` | `int4` |  — every catalog stock adjustment (via `adjust_product_stock()`, see Functions) writes one row here, `change_qty` being the signed delta applied |
+| `change_qty` | `int4` |  |
 | `reason` | `text` |  |
 | `reference_id` | `uuid` |  Nullable |
 | `created_at` | `timestamptz` |  |
@@ -145,38 +132,36 @@ constraint customer_addresses_profile_id_fkey foreign KEY (profile_id) reference
 | `admin_email` | `text` |  |
 | `admin_name` | `text` |  |
 
-This table — not a role claim on `profiles` or the JWT — is the source of
-truth for "is this user an admin". Admin-only edge functions authenticate
-the caller's JWT, then check `auth.uid()`'s email against `admin_email`
-here. (Use Case 19's spec text assumed a `role === 'admin'` claim; no such
-column exists anywhere in this schema.)
+## Table `customer_addresses`
 
-## Functions
+table stores multiple addresses for each customer
 
-### `adjust_product_stock(p_product_id uuid, p_delta int, p_reason text)`
+### Columns
 
-Added 2026-09-16 for Use Case 19 (Catalog Management). Atomically applies
-a signed delta to `products.stock_quantity` (`SET stock_quantity =
-stock_quantity + p_delta`) and logs the change to `inventory_logs`.
-Raises an error if the product doesn't exist or the adjustment would take
-stock below zero. `security definer`, executable only by `service_role` —
-called from the `admin-catalog-stock` edge function, never directly from
-the client.
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `int8` | Primary Identity |
+| `created_at` | `timestamptz` |  |
+| `profile_id` | `uuid` |  |
+| `address_line1` | `varchar` |  Nullable |
+| `address_line2` | `varchar` |  Nullable |
+| `city` | `varchar` |  Nullable |
+| `pincode` | `varchar` |  Nullable |
+| `mobilenumber` | `varchar` |  Nullable |
 
-Use Case 19's own spec text showed an absolute-value stock update
-(`{"stock_quantity": 85}`) in its request example, but its Edge Cases
-section explicitly called for atomic delta-based updates instead, to
-avoid concurrent admins overwriting each other's changes. This function
-implements that safer version; there is no absolute-set endpoint.
+## Table `payment_records`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary |
+| `order_id` | `uuid` |  |
+| `amount` | `numeric` |  |
+| `utr_number` | `text` |  Unique |
+| `created_at` | `timestamptz` |  |
 
 ## RLS Policies
-
-### `profiles`
-
-| Policy | Command | Roles | Action | USING | WITH CHECK |
-|--------|---------|-------|--------|-------|------------|
-| `Users can update own profile` | UPDATE | public | PERMISSIVE | `(auth.uid() = id)` | — |
-| `Users can view own profile` | SELECT | public | PERMISSIVE | `(auth.uid() = id)` | — |
 
 ### `carts`
 
@@ -191,19 +176,6 @@ implements that safer version; there is no absolute-set endpoint.
 |--------|---------|-------|--------|-------|------------|
 | `Users can manage own cart items` | ALL | public | PERMISSIVE | `(EXISTS ( SELECT 1    FROM carts c   WHERE ((c.id = cart_items.cart_id) AND (c.profile_id = auth.uid()))))` | `(EXISTS ( SELECT 1    FROM carts c   WHERE ((c.id = cart_items.cart_id) AND (c.profile_id = auth.uid()))))` |
 
-### `categories`
-
-| Policy | Command | Roles | Action | USING | WITH CHECK |
-|--------|---------|-------|--------|-------|------------|
-| `Public can view active categories` | SELECT | public | PERMISSIVE | `(is_active = true)` | — |
-
-Renamed and tightened from the original `Public can view categories`
-(`USING (true)`) on 2026-09-16: once `is_active` existed, leaving this
-policy as `true` would have kept exposing soft-deleted categories to
-public/storefront reads regardless of the app-level admin UI hiding them.
-Admin edge functions use the service-role client and bypass RLS, so they
-can still see and reactivate inactive categories.
-
 ### `order_items`
 
 | Policy | Command | Roles | Action | USING | WITH CHECK |
@@ -217,6 +189,25 @@ can still see and reactivate inactive categories.
 | `Users can create own returns` | INSERT | public | PERMISSIVE | — | `(EXISTS ( SELECT 1    FROM orders o   WHERE ((o.id = returns.order_id) AND (o.customer_id = auth.uid()))))` |
 | `Users can view own returns` | SELECT | public | PERMISSIVE | `(EXISTS ( SELECT 1    FROM orders o   WHERE ((o.id = returns.order_id) AND (o.customer_id = auth.uid()))))` | — |
 
+### `products`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Public can view published products` | SELECT | public | PERMISSIVE | `(is_published = true)` | — |
+
+### `profiles`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Users can update own profile` | UPDATE | public | PERMISSIVE | `(auth.uid() = id)` | — |
+| `Users can view own profile` | SELECT | public | PERMISSIVE | `(auth.uid() = id)` | — |
+
+### `categories`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Public can view active categories` | SELECT | public | PERMISSIVE | `(is_active = true)` | — |
+
 ### `orders`
 
 | Policy | Command | Roles | Action | USING | WITH CHECK |
@@ -224,8 +215,18 @@ can still see and reactivate inactive categories.
 | `Users can create own orders` | INSERT | public | PERMISSIVE | — | `(auth.uid() = customer_id)` |
 | `Users can view own orders` | SELECT | public | PERMISSIVE | `(auth.uid() = customer_id)` | — |
 
-### `products`
+### `payment_records`
 
 | Policy | Command | Roles | Action | USING | WITH CHECK |
 |--------|---------|-------|--------|-------|------------|
-| `Public can view published products` | SELECT | public | PERMISSIVE | `(is_published = true)` | — |
+| `Users can view own payment records` | SELECT | public | PERMISSIVE | `(EXISTS ( SELECT 1    FROM orders o   WHERE ((o.id = payment_records.order_id) AND (o.customer_id = auth.uid()))))` | — |
+
+### `customer_addresses`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Users can delete own addresses` | DELETE | public | PERMISSIVE | `(auth.uid() = profile_id)` | — |
+| `Users can insert own addresses` | INSERT | public | PERMISSIVE | — | `(auth.uid() = profile_id)` |
+| `Users can update own addresses` | UPDATE | public | PERMISSIVE | `(auth.uid() = profile_id)` | `(auth.uid() = profile_id)` |
+| `Users can view own addresses` | SELECT | public | PERMISSIVE | `(auth.uid() = profile_id)` | — |
+

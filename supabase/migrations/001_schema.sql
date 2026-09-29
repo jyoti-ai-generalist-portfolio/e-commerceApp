@@ -308,3 +308,5 @@ ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_shipping_status_check
 ALTER TABLE public.orders ADD CONSTRAINT orders_shipping_status_check 
   CHECK (order_shipping_status IN ('Processing', 'Shipped', 'Delivered', 'Out for Delivery', 'Cancelled'));
 
+-- Step B: Change the default value for 'status'
+ALTER TABLE public.orders ADD COLUMN delivery_date timestamptz;
