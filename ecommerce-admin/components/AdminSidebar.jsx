@@ -3,9 +3,11 @@
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/admin/dashboard" },
   { label: "Catalog", href: "/admin/catalog" },
-  { label: "Orders", href: "/admin/orders" },
+  { label: 'Orders & Operations',      href: '/admin/orders'  },
+  { label: 'Returns & Refunds',        href: '/admin/returns' },
   { label: "Customers", href: "/admin/customers" },
   { label: "Settings", href: "/admin/settings" },
+  
 ];
 
 export default function AdminSidebar({ active = "Dashboard" }) {
