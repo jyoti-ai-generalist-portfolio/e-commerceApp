@@ -9,7 +9,7 @@ if (!JWT_SECRET) {
 
 
 export function signAdminToken({ adminId, email, name }) {
-  console.log("Got JWT secret here inside signAdminToken function ", JWT_SECRET);
+ // console.log("Got JWT secret here inside signAdminToken function ", JWT_SECRET);
   return jwt.sign(
     { admin_id: adminId, email, name, role: "admin" },
     JWT_SECRET,

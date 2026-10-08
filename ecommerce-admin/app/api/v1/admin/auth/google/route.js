@@ -30,7 +30,7 @@ export async function POST(request) {
       { status: 400 }
     );
   }
-  console.log ("Google ID Token found is ",id_token );
+  //console.log ("Google ID Token found is ",id_token );
   // 1. Verify the Google id_token (signature + audience + expiry).
   let identity;
   try {
@@ -48,7 +48,7 @@ export async function POST(request) {
     .select("id, admin_email, admin_name")
     .ilike("admin_email", identity.email)
     .maybeSingle();
-  console.log ("I am in auth/google/route.js - i have checked admin is valid");
+  //console.log ("I am in auth/google/route.js - i have checked admin is valid");
 
   
   if (dbError) {

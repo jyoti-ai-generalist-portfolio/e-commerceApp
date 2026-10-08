@@ -21,7 +21,7 @@ export async function GET(request) {
     );
   }
   
-  console.log("In Me - before verifyAdminToken");
+  //console.log("In Me - before verifyAdminToken");
   const payload = verifyAdminToken(token);
   if (!payload) {
     return NextResponse.json(
@@ -30,7 +30,7 @@ export async function GET(request) {
     );
   }
   
-  console.log("In Me - after verifying token checking in the table ");
+  //console.log("In Me - after verifying token checking in the table ");
   const { data: adminRecord, error } = await supabaseAdmin
     .from("admins")
     .select("id, admin_email, admin_name")
