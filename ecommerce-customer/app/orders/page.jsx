@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useApp } from '../lib/store/AppProviders';
+import { useApp } from '../../lib/store/AppProviders';
 
 function formatPrice(price) {
   const value = Number(price);

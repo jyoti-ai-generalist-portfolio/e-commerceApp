@@ -1,7 +1,7 @@
 // /app/api/v1/orders/[id]/route.js
 import { NextResponse } from 'next/server';
 // 1. Corrected relative path levels for imports since we dropped the "/customer" directory
-import { getCustomerContext, jsonError, normalizeOrder, ORDER_SELECT, UUID_RE } from '../../../../lib/customerOrdersServer';
+import { getCustomerContext, jsonError, normalizeOrder, ORDER_SELECT, UUID_RE } from '../../../../../lib/customerOrdersServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +17,7 @@ export async function GET(request, { params }) {
   // 4. Query using your clean RLS active context instance
   const { data, error } = await ctx.supabase
     .from('orders')
-    .select(ORDER_SELECT)
+    .select(`${ORDER_SELECT}`)
     .eq('id', params.id)
     .eq('customer_id', ctx.user.id)
     .maybeSingle();

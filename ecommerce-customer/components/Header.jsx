@@ -16,6 +16,15 @@ export default function Header() {
         </Link>
 
         <div className="flex items-center gap-4">
+           {/* ✅ Added navigation link for Orders, Returns, and Cancellations */}
+          {user && (
+            <Link 
+              href="/orders" 
+              className="text-sm font-medium text-ink/80 hover:text-ink transition-colors"
+            >
+              My Orders
+            </Link>
+          )}
           {/* Dynamic Auth Links Area */}
           {user ? (
             <button
