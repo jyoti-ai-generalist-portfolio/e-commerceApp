@@ -193,6 +193,7 @@ export default function OrderConfirmationPage() {
           <span className="font-display text-lg text-ink">{formatPrice(order.total_amount)}</span>
         </div>
 
+        {/* only show action buttons if there is no existing request and order status is active */}
         {!hasExistingRequest && order.status?.toLowerCase() === 'paid' && (
           <div className="mt-6 border-t border-line pt-4 text-center">
             {currentShippingStatus === 'delivered' ? (
@@ -214,7 +215,14 @@ export default function OrderConfirmationPage() {
             ) : null}
           </div>
         )}
+        {order.status?.toLowerCase() === 'payment_refunded' && (
+          <div className="mt-6 rounded-card bg-neutral-100 p-4 text-sm text-ink text-center">
+            Your order has been cancelled and your payment has been refunded.
+          </div>
+        )}
 
+
+        
         {hasExistingRequest && (
           <section className="mt-8 border-t border-line pt-6">
             <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-ink/50">
