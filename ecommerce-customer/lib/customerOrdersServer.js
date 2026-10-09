@@ -12,7 +12,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 
 // products(title) resolves only for published products (RLS); unpublished ones come back null.
 export const ORDER_SELECT = `
-  id, total_amount, status, order_shipping_status, delivery_date, tracking_number, created_at,
+  id, total_amount, status, order_shipping_status, delivery_date, tracking_number, created_at,  shipping_address,
   order_items ( id, product_id, quantity, price_at_purchase, products ( title ) ),
   returns ( id, reason, status, created_at )
 `;
@@ -50,6 +50,7 @@ export async function getCustomerContext(request) {
 export function normalizeOrder(o) {
   return {
     ...o,
+    shipping_address: o.shipping_address || {}, // Explicity pass the shipping_address as an object, even if it's null
     order_items: (o.order_items || []).map((i) => ({
       id: i.id,
       product_id: i.product_id,

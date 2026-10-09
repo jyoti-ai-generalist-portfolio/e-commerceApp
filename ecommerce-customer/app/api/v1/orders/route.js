@@ -27,7 +27,7 @@ export async function GET(request) {
     .order('created_at', { ascending: false });
 
   // 4. Dynamically apply status filters sent by the frontend component
-  if (statusFilter) {
+  if (statusFilter && statusFilter != 'null' && statusFilter.trim() != '') {
     query = query.eq('status', statusFilter);
   }
 
