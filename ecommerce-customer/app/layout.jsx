@@ -4,6 +4,7 @@ import { AppProviders } from '../lib/store/AppProviders';
 import Header from '../components/Header';
 import CartDrawer from '../components/CartDrawer';
 import AuthModal from '../components/auth/AuthModal';
+import ChatWidget from '../components/chatbot/ChatWidget';
 
 // To this:
 
@@ -27,6 +28,8 @@ export const metadata = {
   description: 'Browse products, add to cart, and check out.',
 };
 
+
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
@@ -37,10 +40,14 @@ export default function RootLayout({ children }) {
             {children}
             <CartDrawer />
             <AuthModal />
-           
+            
+            {/* Global floating AI assistant */}
+            <ChatWidget />
           </ToastProvider>
         </AppProviders>
       </body>
     </html>
   );
+}
+
 }
