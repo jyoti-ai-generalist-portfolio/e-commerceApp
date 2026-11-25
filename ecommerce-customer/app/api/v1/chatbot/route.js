@@ -51,9 +51,10 @@ export async function POST(request) {
         'Authorization': `Bearer ${process.env.GEMINI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-3.5-flash',
         messages: [systemPrompt, ...formattedHistory, currentUserMessage],
         temperature: 0.4,
+        max_tokens: 1024,
       }),
     });
 
