@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAnonSupabase, getServiceSupabase } from '../../../../../lib/supabaseServer';
-import { sendWelcomeEmail } from '../../../../../lib/resend';
+import { sendWelcomeEmail } from '../../../../../lib/mailer';
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value || '');
@@ -64,12 +64,6 @@ export async function POST(request) {
       );
     }
 
-    // Use the service role here rather than the brand-new user's own
-    // session: if the Supabase project has "confirm email" enabled,
-    // signUp() returns no session at all until the user clicks the
-    // confirmation link, so there is no JWT yet to satisfy
-    // profiles/customer_addresses RLS. The service role writes these
-    // rows unconditionally right after auth user creation.
     const serviceSupabase = getServiceSupabase();
 
     const { error: profileError } = await serviceSupabase
@@ -92,26 +86,22 @@ export async function POST(request) {
       mobilenumber,
     });
     if (addressError) {
-      // Don't fail the whole registration over the address row — the
-      // account and profile already exist. Log it for follow-up instead.
       console.error('Address insert failed:', addressError);
     }
 
     try {
-      console.log("In register function - before sendig welcome email");
+      console.log('In register function - before sending welcome email');
       await sendWelcomeEmail({ to: email, name: full_name });
     } catch (emailError) {
       // Per spec: email delivery failure must not block registration.
       console.error('Welcome email failed to send:', emailError);
     }
-    console.log("In register function - after sending welcome email");
+    console.log('In register function - after sending welcome email');
+
     return NextResponse.json(
       {
         message: 'Registration successful. Welcome email sent.',
         profile_id: newUser.id,
-        // Null when the Supabase project requires email confirmation —
-        // the client must handle this by prompting the user to confirm
-        // their email rather than assuming they're logged in.
         session: signUpData.session,
       },
       { status: 201 }
