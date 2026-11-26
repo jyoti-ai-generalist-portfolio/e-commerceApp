@@ -29,7 +29,7 @@ begin
          updated_at = now()
    where id = p_order_id;
 
-  -- 4. Advance return status to 'Refunded'
+  -- 4. Advance return status to 'Refunded' okay
   update returns 
      set status = 'Refunded', 
          updated_at = now()
@@ -62,3 +62,4 @@ $$;
 
 revoke all on function public.approve_refund_restore(uuid, uuid, boolean) from public, anon, authenticated;
 grant execute on function public.approve_refund_restore(uuid, uuid, boolean) to service_role;
+
