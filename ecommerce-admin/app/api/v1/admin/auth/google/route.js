@@ -50,13 +50,14 @@ export async function POST(request) {
     .maybeSingle();
   //console.log ("I am in auth/google/route.js - i have checked admin is valid");
 
-  
   if (dbError) {
-    return NextResponse.json(
-      { success: false, error: "Unable to verify administrator status." },
-      { status: 500 }
-    );
-  }
+  console.error("Supabase dbError in admin lookup:", dbError);
+  return NextResponse.json(
+    { success: false, error: "Unable to verify administrator status." },
+    { status: 500 }
+  );
+}
+  
 
   // 3. Authorization check: reject anyone not present in admins.
   if (!adminRecord) {

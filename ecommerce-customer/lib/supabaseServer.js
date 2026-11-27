@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const dbSchema = process.env.NEXT_PUBLIC_DB_SCHEMA || 'public';
+const dbSchema = process.env.DB_SCHEMA || 'public';
 
 // Pulls the Supabase access token out of the Authorization: Bearer header.
 export function getBearerToken(request) {

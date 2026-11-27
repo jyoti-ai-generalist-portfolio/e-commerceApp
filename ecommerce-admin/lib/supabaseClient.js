@@ -1,10 +1,10 @@
-//ecommerce-admin/lib/supaabaseClient.js
+//ecommerce-admin/lib/supabaseClient.js
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL; // Public URL is fine
 // SECURE: Removed NEXT_PUBLIC_ so it never leaks to the browser
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY; 
-const dbSchema = process.env.NEXT_PUBLIC_DB_SCHEMA || "public";
+const dbSchema = process.env.DB_SCHEMA || "public";
 
 //console.log("Supabase URL found inside supabaseClient.js", supabaseUrl);
 

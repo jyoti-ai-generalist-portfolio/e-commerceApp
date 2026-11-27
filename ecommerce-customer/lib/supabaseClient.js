@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const dbSchema = process.env.NEXT_PUBLIC_DB_SCHEMA || 'public';
+const dbSchema = process.env.DB_SCHEMA || 'public';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
