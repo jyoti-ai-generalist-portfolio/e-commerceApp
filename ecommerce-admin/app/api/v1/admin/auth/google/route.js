@@ -14,7 +14,7 @@ export async function POST(request) {
   let body;
   try {
     body = await request.json();
-    console.log ("body found is ", body);
+    //console.log ("body found is ", body);
   } catch {
     return NextResponse.json(
       { success: false, error: "Invalid JSON body." },
@@ -87,7 +87,7 @@ export async function POST(request) {
     name: adminRecord.admin_name,
   }  
   );
-  console.log ("After signAdminToken returning after locking the token");
+  //console.log ("After signAdminToken returning after locking the token");
 
   const response = NextResponse.json({
     success: true,

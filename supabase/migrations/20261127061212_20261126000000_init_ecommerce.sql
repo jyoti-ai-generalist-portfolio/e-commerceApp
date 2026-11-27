@@ -8,6 +8,60 @@ create extension if not exists "pgcrypto";
 -- ============================================================================
 -- 1. TABLES & INDEXES
 -- ============================================================================
+-- ============================================================================
+-- MISSING TABLES: public.admins & public.payment_records
+-- ============================================================================
+
+create table if not exists public.admins (
+  id bigint generated always as identity primary key,
+  admin_email text not null unique,
+  admin_name text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.payment_records (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.orders(id) on delete cascade,
+  customer_id uuid references public.profiles(id) on delete set null,
+  razorpay_order_id text,
+  razorpay_payment_id text unique,
+  razorpay_signature text,
+  amount numeric(10, 2) not null check (amount >= 0),
+  currency text not null default 'INR',
+  status text not null default 'created'
+    check (status in ('created', 'authorized', 'captured', 'failed', 'refunded')),
+  method text,
+  raw_payload jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_payment_records_order on public.payment_records(order_id);
+create index if not exists idx_payment_records_customer on public.payment_records(customer_id);
+create index if not exists idx_payment_records_razorpay_order on public.payment_records(razorpay_order_id);
+
+drop trigger if exists trg_payment_records_updated_at on public.payment_records;
+create trigger trg_payment_records_updated_at before update on public.payment_records
+  for each row execute function public.set_updated_at();
+
+-- RLS for admins & payment_records
+alter table public.admins enable row level security;
+alter table public.payment_records enable row level security;
+
+drop policy if exists "admins: admin read" on public.admins;
+create policy "admins: admin read" on public.admins
+  for select using (public.is_admin());
+
+drop policy if exists "payment_records: own or admin read" on public.payment_records;
+create policy "payment_records: own or admin read" on public.payment_records
+  for select using (
+    customer_id = auth.uid()
+    or public.is_admin()
+    or exists (
+      select 1 from public.orders o
+      where o.id = order_id and o.customer_id = auth.uid()
+    )
+  );
+
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -122,6 +176,7 @@ create table if not exists public.reviews (
   created_at timestamptz not null default now(),
   unique (product_id, customer_id)
 );
+
 create index if not exists idx_reviews_product on public.reviews(product_id);
 
 create table if not exists public.inventory_logs (

@@ -6,7 +6,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL; // Public URL is fine
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY; 
 const dbSchema = process.env.NEXT_PUBLIC_DB_SCHEMA || "public";
 
-console.log("Supabase URL found inside supabaseClient.js", supabaseUrl);
+//console.log("Supabase URL found inside supabaseClient.js", supabaseUrl);
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
   console.warn(

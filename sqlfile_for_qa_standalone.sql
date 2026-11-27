@@ -1,10 +1,6 @@
--- ### File 2: Standalone `qa` Schema Setup for Project 1 (`supabase/qa_schema_setup.sql`)
-
--- Run this **once** in **Project 1's Supabase SQL Editor** (do **not** place it in `supabase/migrations/` so Project 2 Production doesn't get a `qa` schema):
-
---sql
 -- ============================================================================
 -- QA Schema Setup inside Project 1 (coexists alongside public = Dev)
+-- Run once in Project 1's Supabase SQL Editor (do NOT place in migrations/)
 -- ============================================================================
 
 create schema if not exists qa;
@@ -15,6 +11,13 @@ alter default privileges in schema qa grant all on sequences to anon, authentica
 alter default privileges in schema qa grant all on routines to anon, authenticated, service_role;
 
 -- 1. Tables
+create table if not exists qa.admins (
+  id bigint generated always as identity primary key,
+  admin_email text not null unique,
+  admin_name text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists qa.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null unique,
@@ -106,6 +109,26 @@ create table if not exists qa.order_items (
 );
 create index if not exists idx_qa_order_items_order on qa.order_items(order_id);
 
+create table if not exists qa.payment_records (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references qa.orders(id) on delete cascade,
+  customer_id uuid references qa.profiles(id) on delete set null,
+  razorpay_order_id text,
+  razorpay_payment_id text unique,
+  razorpay_signature text,
+  amount numeric(10, 2) not null check (amount >= 0),
+  currency text not null default 'INR',
+  status text not null default 'created'
+    check (status in ('created', 'authorized', 'captured', 'failed', 'refunded')),
+  method text,
+  raw_payload jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_qa_payment_records_order on qa.payment_records(order_id);
+create index if not exists idx_qa_payment_records_customer on qa.payment_records(customer_id);
+create index if not exists idx_qa_payment_records_razorpay_order on qa.payment_records(razorpay_order_id);
+
 create table if not exists qa.returns (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references qa.orders(id) on delete cascade,
@@ -159,6 +182,8 @@ drop trigger if exists trg_carts_updated_at on qa.carts;
 create trigger trg_carts_updated_at before update on qa.carts for each row execute function qa.set_updated_at();
 drop trigger if exists trg_orders_updated_at on qa.orders;
 create trigger trg_orders_updated_at before update on qa.orders for each row execute function qa.set_updated_at();
+drop trigger if exists trg_payment_records_updated_at on qa.payment_records;
+create trigger trg_payment_records_updated_at before update on qa.payment_records for each row execute function qa.set_updated_at();
 drop trigger if exists trg_returns_updated_at on qa.returns;
 create trigger trg_returns_updated_at before update on qa.returns for each row execute function qa.set_updated_at();
 
@@ -207,23 +232,23 @@ begin
   if exists (select 1 from qa.returns where id = p_return_id and order_id = p_order_id and status in ('Approved', 'Refunded')) then
     raise exception 'Return request is already processed or approved';
   end if;
-update qa.orders set status = 'refunded',
-order_shipping_status = case when p_is_cancellation then 'Cancelled' else 'Returned' end,
-updated_at = now() where id = p_order_id;
-update qa.returns set status = 'Refunded', updated_at = now()
-where id = p_return_id and order_id = p_order_id;
-if not found then raise exception 'Return request not found for this order'; end if;
-for v_item in select product_id, quantity from qa.order_items where order_id = p_order_id and product_id is not null loop
-update qa.products set stock = stock + v_item.quantity, updated_at = now() where id = v_item.product_id;
-insert into qa.inventory_logs (product_id, change_amount, reason, order_id)
-values (v_item.product_id, v_item.quantity,
-case when p_is_cancellation then 'Order Cancelled / Refunded' else 'Return Refunded' end, p_order_id);
-end loop;
+  update qa.orders set status = 'refunded',
+    order_shipping_status = case when p_is_cancellation then 'Cancelled' else 'Returned' end,
+    updated_at = now() where id = p_order_id;
+  update qa.returns set status = 'Refunded', updated_at = now()
+    where id = p_return_id and order_id = p_order_id;
+  if not found then raise exception 'Return request not found for this order'; end if;
+  for v_item in select product_id, quantity from qa.order_items where order_id = p_order_id and product_id is not null loop
+    update qa.products set stock = stock + v_item.quantity, updated_at = now() where id = v_item.product_id;
+    insert into qa.inventory_logs (product_id, change_amount, reason, order_id)
+    values (v_item.product_id, v_item.quantity,
+      case when p_is_cancellation then 'Order Cancelled / Refunded' else 'Return Refunded' end, p_order_id);
+  end loop;
 end;
 $$;
 
-
 -- 3. RLS Policies
+alter table qa.admins enable row level security;
 alter table qa.profiles enable row level security;
 alter table qa.customer_addresses enable row level security;
 alter table qa.categories enable row level security;
@@ -232,44 +257,95 @@ alter table qa.carts enable row level security;
 alter table qa.cart_items enable row level security;
 alter table qa.orders enable row level security;
 alter table qa.order_items enable row level security;
+alter table qa.payment_records enable row level security;
 alter table qa.returns enable row level security;
 alter table qa.reviews enable row level security;
 alter table qa.inventory_logs enable row level security;
+
+drop policy if exists "admins: admin read" on qa.admins;
+create policy "admins: admin read" on qa.admins for select using (qa.is_admin());
+
+drop policy if exists "profiles: own or admin read" on qa.profiles;
 create policy "profiles: own or admin read" on qa.profiles for select using (id = auth.uid() or qa.is_admin());
+drop policy if exists "profiles: own insert" on qa.profiles;
 create policy "profiles: own insert" on qa.profiles for insert with check (id = auth.uid());
+drop policy if exists "profiles: own update" on qa.profiles;
 create policy "profiles: own update" on qa.profiles for update using (id = auth.uid()) with check (id = auth.uid());
+
+drop policy if exists "addresses: own or admin read" on qa.customer_addresses;
 create policy "addresses: own or admin read" on qa.customer_addresses for select using (profile_id = auth.uid() or qa.is_admin());
+drop policy if exists "addresses: own insert" on qa.customer_addresses;
 create policy "addresses: own insert" on qa.customer_addresses for insert with check (profile_id = auth.uid());
+drop policy if exists "addresses: own update" on qa.customer_addresses;
 create policy "addresses: own update" on qa.customer_addresses for update using (profile_id = auth.uid()) with check (profile_id = auth.uid());
+drop policy if exists "addresses: own delete" on qa.customer_addresses;
 create policy "addresses: own delete" on qa.customer_addresses for delete using (profile_id = auth.uid());
+
+drop policy if exists "categories: public read" on qa.categories;
 create policy "categories: public read" on qa.categories for select using (true);
+drop policy if exists "categories: admin write" on qa.categories;
 create policy "categories: admin write" on qa.categories for all using (qa.is_admin()) with check (qa.is_admin());
+
+drop policy if exists "products: public read" on qa.products;
 create policy "products: public read" on qa.products for select using (true);
+drop policy if exists "products: admin write" on qa.products;
 create policy "products: admin write" on qa.products for all using (qa.is_admin()) with check (qa.is_admin());
+
+drop policy if exists "carts: own all" on qa.carts;
 create policy "carts: own all" on qa.carts for all using (profile_id = auth.uid()) with check (profile_id = auth.uid());
+
+drop policy if exists "cart_items: own all" on qa.cart_items;
 create policy "cart_items: own all" on qa.cart_items for all
 using (exists (select 1 from qa.carts c where c.id = cart_id and c.profile_id = auth.uid()))
 with check (exists (select 1 from qa.carts c where c.id = cart_id and c.profile_id = auth.uid()));
+
+drop policy if exists "orders: own or admin read" on qa.orders;
 create policy "orders: own or admin read" on qa.orders for select using (customer_id = auth.uid() or qa.is_admin());
+drop policy if exists "orders: own insert" on qa.orders;
 create policy "orders: own insert" on qa.orders for insert with check (customer_id = auth.uid());
+drop policy if exists "orders: own or admin update" on qa.orders;
 create policy "orders: own or admin update" on qa.orders for update using (customer_id = auth.uid() or qa.is_admin());
+
+drop policy if exists "order_items: own or admin read" on qa.order_items;
 create policy "order_items: own or admin read" on qa.order_items for select using (
-exists (select 1 from qa.orders o where o.id = order_id and (o.customer_id = auth.uid() or qa.is_admin()))
+  exists (select 1 from qa.orders o where o.id = order_id and (o.customer_id = auth.uid() or qa.is_admin()))
 );
+drop policy if exists "order_items: own insert" on qa.order_items;
 create policy "order_items: own insert" on qa.order_items for insert with check (
-exists (select 1 from qa.orders o where o.id = order_id and o.customer_id = auth.uid())
+  exists (select 1 from qa.orders o where o.id = order_id and o.customer_id = auth.uid())
 );
+
+drop policy if exists "payment_records: own or admin read" on qa.payment_records;
+create policy "payment_records: own or admin read" on qa.payment_records for select using (
+  customer_id = auth.uid()
+  or qa.is_admin()
+  or exists (
+    select 1 from qa.orders o
+    where o.id = order_id and o.customer_id = auth.uid()
+  )
+);
+
+drop policy if exists "returns: own or admin read" on qa.returns;
 create policy "returns: own or admin read" on qa.returns for select using (
-exists (select 1 from qa.orders o where o.id = order_id and (o.customer_id = auth.uid() or qa.is_admin()))
+  exists (select 1 from qa.orders o where o.id = order_id and (o.customer_id = auth.uid() or qa.is_admin()))
 );
+drop policy if exists "returns: own insert" on qa.returns;
 create policy "returns: own insert" on qa.returns for insert with check (
-exists (select 1 from qa.orders o where o.id = order_id and o.customer_id = auth.uid())
+  exists (select 1 from qa.orders o where o.id = order_id and o.customer_id = auth.uid())
 );
+drop policy if exists "returns: admin update" on qa.returns;
 create policy "returns: admin update" on qa.returns for update using (qa.is_admin());
+
+drop policy if exists "reviews: public read" on qa.reviews;
 create policy "reviews: public read" on qa.reviews for select using (true);
+drop policy if exists "reviews: own insert" on qa.reviews;
 create policy "reviews: own insert" on qa.reviews for insert with check (customer_id = auth.uid());
+drop policy if exists "reviews: own update" on qa.reviews;
 create policy "reviews: own update" on qa.reviews for update using (customer_id = auth.uid());
+drop policy if exists "reviews: own delete" on qa.reviews;
 create policy "reviews: own delete" on qa.reviews for delete using (customer_id = auth.uid() or qa.is_admin());
+
+drop policy if exists "inventory_logs: admin read" on qa.inventory_logs;
 create policy "inventory_logs: admin read" on qa.inventory_logs for select using (qa.is_admin());
 
 grant all on all tables in schema qa to anon, authenticated, service_role;

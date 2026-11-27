@@ -14,7 +14,7 @@ export default function AdminLoginPage() {
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [errorMessage, setErrorMessage] = useState("");
 
-  console.log ("Google client id is ",process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
+  //console.log ("Google client id is ",process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
   useEffect(() => {
     // 1. Look for an existing script tag to prevent duplicates during Fast Refresh
     let script = document.getElementById("google-gsi-script");
