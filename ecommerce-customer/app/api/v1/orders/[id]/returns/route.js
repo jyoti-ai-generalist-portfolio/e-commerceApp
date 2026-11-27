@@ -4,6 +4,7 @@ import { getCustomerContext, jsonError, UUID_RE } from '../../../../../../lib/cu
 import {
   REQUEST_PREFIX, RETURN_WINDOW_DAYS, hasActiveRequest, isReturnWindowOpen,
 } from '../../../../../../lib/orderRules';
+import { sendReturnRequestNotifyEmail } from '../../../../../../lib/mailer';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +36,7 @@ export async function POST(request, { params }) {
 
   const { data: order, error } = await ctx.supabase
     .from('orders')
-    .select('id, status, order_shipping_status, delivery_date, returns ( id, status )')
+    .select('id, status, total_amount, order_shipping_status, delivery_date, returns ( id, status )')
     .eq('id', params.id)
     .eq('customer_id', ctx.user.id)
     .maybeSingle();
@@ -72,6 +73,27 @@ export async function POST(request, { params }) {
   if (insertErr) {
     console.error('returns insert failed:', insertErr.message);
     return jsonError('Could not submit your request. Please try again.', 500, 'INSERT_FAILED');
+  }
+
+  // Notify store admin via SMTP (non-blocking).
+  try {
+    const { data: profile } = await ctx.supabase
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', ctx.user.id)
+      .maybeSingle();
+
+    await sendReturnRequestNotifyEmail({
+      orderId: order.id,
+      returnId: created.id,
+      requestType: type,
+      reason,
+      customerName: profile?.full_name || '',
+      customerEmail: profile?.email || ctx.user.email || '',
+      totalAmount: order.total_amount,
+    });
+  } catch (emailErr) {
+    console.error('Return request admin email failed to send:', emailErr);
   }
 
   return NextResponse.json({ request: created }, { status: 201 });

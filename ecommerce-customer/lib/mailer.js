@@ -60,7 +60,6 @@ export async function sendWelcomeEmail({ to, name }) {
   });
 }
 
-// Optional: Migrated sendOrderConfirmationEmail from resend.js for consistency
 function formatINR(amount) {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -109,6 +108,48 @@ export async function sendOrderConfirmationEmail({ to, name, orderId, items, tot
         </div>
         <p style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; margin-top:20px;">
           We'll email you again once your order ships.
+        </p>
+      </div>
+    `,
+  });
+}
+
+// Replaces return-request-notify Supabase Edge Function (emails store admin)
+export async function sendReturnRequestNotifyEmail({
+  orderId,
+  returnId,
+  requestType,
+  reason,
+  customerName,
+  customerEmail,
+  totalAmount,
+}) {
+  const adminTo = process.env.ADMIN_EMAIL || process.env.MAIL_FROM || process.env.SMTP_USER;
+  if (!adminTo) return;
+
+  const mailer = getTransporter();
+  const shortOrder = String(orderId).slice(0, 8).toUpperCase();
+  const label = requestType === 'CANCEL' ? 'Cancellation' : 'Return';
+
+  await mailer.sendMail({
+    from: process.env.MAIL_FROM || process.env.SMTP_USER,
+    to: adminTo,
+    subject: `New ${label} Request — Order #${shortOrder}`,
+    html: `
+      <div style="font-family: Georgia, 'Times New Roman', serif; max-width: 480px; margin: 0 auto; color: #14213D;">
+        <h1 style="font-size: 22px; margin-bottom: 8px;">New ${esc(label)} Request</h1>
+        <p style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6;">
+          A customer has submitted a <b>${esc(label.toLowerCase())}</b> request that requires admin review.
+        </p>
+        <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.8; background: #f8f9fa; padding: 12px 16px; border-radius: 6px; margin: 16px 0;">
+          <div><b>Order ID:</b> ${esc(orderId)}</div>
+          <div><b>Request ID:</b> ${esc(returnId)}</div>
+          <div><b>Customer:</b> ${esc(customerName || 'Customer')} (${esc(customerEmail || 'N/A')})</div>
+          ${totalAmount != null ? `<div><b>Order Amount:</b> ${formatINR(totalAmount)}</div>` : ''}
+          <div><b>Reason:</b> ${esc(reason)}</div>
+        </div>
+        <p style="font-family: Arial, sans-serif; font-size: 13px; color: #6b6b6b;">
+          Log in to the Admin Dashboard to approve or reject this request.
         </p>
       </div>
     `,

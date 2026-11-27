@@ -1,8 +1,9 @@
-//app/api/v1/payments/verify/route.js
+// app/api/v1/payments/verify/route.js
 
 import { NextResponse } from 'next/server';
 import { getBearerToken, getAuthedSupabase, getUserFromToken } from '../../../../../lib/supabaseServer';
 import { verifyRazorpaySignature } from '../../../../../lib/razorpayServer';
+import { sendOrderConfirmationEmail } from '../../../../../lib/mailer';
 
 export async function POST(request) {
   try {
@@ -26,7 +27,21 @@ export async function POST(request) {
     // (defends against a forged/replayed order_id from the client).
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, customer_id, razorpay_order_id, status, total_amount')
+      .select(`
+        id,
+        customer_id,
+        razorpay_order_id,
+        status,
+        subtotal,
+        tax_amount,
+        shipping_fee,
+        total_amount,
+        order_items (
+          quantity,
+          price_at_purchase,
+          products ( title )
+        )
+      `)
       .eq('id', order_id)
       .maybeSingle();
     if (orderError) throw orderError;
@@ -70,6 +85,39 @@ export async function POST(request) {
       .maybeSingle();
     if (cart) {
       await supabase.from('cart_items').delete().eq('cart_id', cart.id);
+    }
+
+    // Send order confirmation email via SMTP (non-blocking).
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      const recipientEmail = profile?.email || user.email;
+      if (recipientEmail) {
+        const items = (order.order_items || []).map((item) => ({
+          title: item.products?.title || 'Product',
+          quantity: item.quantity,
+          price_at_purchase: item.price_at_purchase,
+        }));
+
+        await sendOrderConfirmationEmail({
+          to: recipientEmail,
+          name: profile?.full_name || '',
+          orderId: order.id,
+          items,
+          totals: {
+            subtotal: order.subtotal,
+            tax_amount: order.tax_amount,
+            shipping_fee: order.shipping_fee,
+            total_amount: order.total_amount,
+          },
+        });
+      }
+    } catch (emailErr) {
+      console.error('Order confirmation email failed to send:', emailErr);
     }
 
     return NextResponse.json({ message: 'Payment verified', order_id: order.id });
