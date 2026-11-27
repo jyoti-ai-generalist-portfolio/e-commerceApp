@@ -192,7 +192,6 @@ create index if not exists idx_inventory_logs_product on public.inventory_logs(p
 -- ============================================================================
 -- 2. HELPER FUNCTIONS, TRIGGERS & RPCs
 -- ============================================================================
-
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -201,10 +200,12 @@ security definer
 set search_path = public
 as $$
   select exists (
-    select 1 from public.profiles
-    where id = auth.uid() and role = 'admin'
+    select 1
+    from public.admins
+    where lower(admin_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
   );
 $$;
+
 
 create or replace function public.set_updated_at()
 returns trigger

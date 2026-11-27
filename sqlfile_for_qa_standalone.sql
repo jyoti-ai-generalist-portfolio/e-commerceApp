@@ -165,8 +165,17 @@ create index if not exists idx_qa_inventory_logs_product on qa.inventory_logs(pr
 
 -- 2. Functions & Triggers
 create or replace function qa.is_admin()
-returns boolean language sql stable security definer set search_path = qa as $$
-  select exists (select 1 from qa.profiles where id = auth.uid() and role = 'admin');
+returns boolean
+language sql
+stable
+security definer
+set search_path = qa
+as $$
+  select exists (
+    select 1
+    from qa.admins
+    where lower(admin_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  );
 $$;
 
 create or replace function qa.set_updated_at()
