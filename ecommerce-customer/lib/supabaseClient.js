@@ -1,3 +1,4 @@
+//ecommerce-customer/lib/supabaseClient.js
 // Browser-side Supabase client. Uses the public anon key only — safe to
 // ship to the client. All row access is governed by RLS policies.
 'use client';
@@ -6,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const dbSchema = process.env.NEXT_PUBLIC_DB_SCHEMA || 'public';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -13,4 +15,5 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     detectSessionInUrl: false,
   },
+  db: { schema: dbSchema },
 });

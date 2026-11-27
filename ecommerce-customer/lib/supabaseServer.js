@@ -1,3 +1,4 @@
+//ecommerce-customer/lib/supabaseServer.js
 // Server-only Supabase helpers for use inside Next.js Route Handlers.
 // Never import this file from a Client Component.
 import { createClient } from '@supabase/supabase-js';
@@ -5,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const dbSchema = process.env.NEXT_PUBLIC_DB_SCHEMA || 'public';
 
 // Pulls the Supabase access token out of the Authorization: Bearer header.
 export function getBearerToken(request) {
@@ -18,7 +20,9 @@ export function getBearerToken(request) {
 // (published products, active categories) and for auth.signInWithPassword /
 // auth.signUp calls that don't need an existing session.
 export function getAnonSupabase() {
-  return createClient(supabaseUrl, supabaseAnonKey);
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    db: { schema: dbSchema },
+  });
 }
 
 // Anon-key client that forwards the caller's own JWT, so Postgres RLS
@@ -28,6 +32,7 @@ export function getAuthedSupabase(accessToken) {
   return createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
     auth: { persistSession: false },
+    db: { schema: dbSchema },
   });
 }
 
@@ -40,6 +45,7 @@ export function getServiceSupabase() {
   }
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
+    db: { schema: dbSchema },
   });
 }
 
