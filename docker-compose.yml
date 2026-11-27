@@ -12,6 +12,7 @@ services:
     environment:
       - NODE_ENV=development
       - WATCHPACK_POLLING=true
+      - npm_config_verify_deps_before_run=false
     volumes:
       - .:/app
       - /app/node_modules
@@ -31,6 +32,7 @@ services:
     environment:
       - NODE_ENV=development
       - WATCHPACK_POLLING=true
+      - npm_config_verify_deps_before_run=false
     volumes:
       - .:/app
       - /app/node_modules

@@ -1,30 +1,27 @@
-# Step 1: Use an official Node.js runtime as the base image
 FROM node:24-alpine
 
-# Step 2: Set the working directory inside the container to the workspace root
 WORKDIR /app
 
-# Step 3: Copy workspace configurations and package files first to leverage Docker cache
-COPY package*.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
-
-# Copy package json manifests of individual apps so pnpm can resolve dependencies
-COPY ecommerce-admin/package*.json ./ecommerce-admin/
-COPY ecommerce-customer/package*.json ./ecommerce-customer/
-
-# Enable corepack to use pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-# Step 4: Install dependencies globally across the workspace using the cache mount
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --no-frozen-lockfile
-
-# Step 5: Copy the rest of your application code across both modules
-COPY . .
-
-# Step 6: Expose the ports both applications will run on
-EXPOSE 3000
-EXPOSE 3001
+ENV PNPM_HOME="/pnpm"
+ENV PATH="/app/node_modules/.bin:$PNPM_HOME:$PATH"
 
 ENV WATCHPACK_POLLING=true
+ENV npm_config_store_dir="/pnpm/store"
+ENV npm_config_verify_deps_before_run=false
+ENV npm_config_node_linker=hoisted
 
-# Step 7: Boot up both development servers concurrently using pnpm workspace filter
-CMD ["pnpm", "run", "dev"]
+RUN corepack enable && corepack prepare pnpm@10 --activate
+
+RUN echo "verify-deps-before-run=false" > /etc/npmrc && \
+    echo "node-linker=hoisted" >> /etc/npmrc && \
+    echo "store-dir=/pnpm/store" >> /etc/npmrc
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml* ./
+COPY ecommerce-admin/package.json ./ecommerce-admin/
+COPY ecommerce-customer/package.json ./ecommerce-customer/
+
+RUN pnpm install --no-frozen-lockfile
+
+COPY . .
+
+EXPOSE 3000 3001
